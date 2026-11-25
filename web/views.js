@@ -30,7 +30,7 @@ VIEWS.orders = function () {
           <div><h2>Dán tin nhắn từ nhóm Zalo</h2><p class="muted small" style="margin:4px 0 0">Chọn các tin nhắn đặt hàng trong Zalo → Sao chép → dán vào đây. Phần mềm tự tách tên khách, mặt hàng, số lượng và ngày lấy.</p></div>
           <textarea id="zText" class="in" rows="6" placeholder="Ví dụ:&#10;Anh Tuấn: lấy 2 thùng bia sg với 1 cây thăng long, chiều 5h qua lấy&#10;Chị Hoa xóm 3: mai cho chị 1 vỉ trứng, 10 gói hảo hảo">${esc(S.zText)}</textarea>
           <div class="row"><button class="btn pri" data-act="zParse">Tách đơn</button>${S.hasKey ? `<button class="btn" data-act="zParseAI">Tách bằng AI</button>` : ""}<span class="grow"></span>${S.zText ? `<button class="btn ghost sm" data-act="zClear">Xóa chữ</button>` : ""}</div>
-          ${!S.hasKey && isOwner() ? `<div class="ps">Tin nhắn viết quá tắt? Có thể bật <b>tách bằng AI</b> trong Cài đặt (cần khóa API Claude, có tính phí).</div>` : ""}
+          ${!S.hasKey && isAdmin() ? `<div class="ps">Tin nhắn viết quá tắt? Có thể bật <b>tách bằng AI</b> trong Cài đặt (cần khóa API Claude, có tính phí).</div>` : ""}
         </div>
         <div id="drafts" class="stack"></div>
       </div>
@@ -147,8 +147,8 @@ VIEWS.products = function () {
   $("#main").innerHTML = `<div class="page">
     <div class="head"><h1>Hàng hóa</h1>${impBtn("products")}
       <a class="btn sm" href="/api/export/products" download>Xuất Excel</a>
-      ${exp && isOwner() ? `<button class="btn sm danger" data-act="dispose" data-confirm="Bấm lần nữa: hủy toàn bộ lô hết hạn">Xuất hủy hàng hết hạn (${exp})</button>` : ""}
-      ${isOwner() ? `<button class="btn sm" data-act="newCombo">+ Combo</button><button class="btn sm pri" data-act="newProduct">+ Mặt hàng</button>` : ""}</div>
+      ${exp && can("stock") ? `<button class="btn sm danger" data-act="dispose" data-confirm="Bấm lần nữa: hủy toàn bộ lô hết hạn">Xuất hủy hàng hết hạn (${exp})</button>` : ""}
+      ${can("stock") ? `<button class="btn sm" data-act="newCombo">+ Combo</button><button class="btn sm pri" data-act="newProduct">+ Mặt hàng</button>` : ""}</div>
     <div class="stats">${stat("all", "Mặt hàng đang bán", fmt(all.length - combos - hidden))}
       ${owner ? `<div class="stat"><div class="k">Giá trị tồn (giá vốn)</div><div class="v">${money(val)}</div></div>` : ""}
       ${stat("low", "Sắp hết", low, "warn")}${stat("out", "Hết hàng", out, "bad")}${stat("near", `Cận date (≤${S.settings.expWarn || 30} ngày)`, near, "warn")}${stat("exp", "Có lô hết hạn", exp, "bad")}${stat("combo", "Combo", combos)}${hidden ? stat("hidden", "Ngừng bán", hidden) : ""}</div>
@@ -157,7 +157,7 @@ VIEWS.products = function () {
     ${!all.length ? `<div class="empty"><b>Kho đang trống</b>Lấy danh mục hàng từ file Excel xuất ra từ KiotViet / MISA, hoặc thêm từng mặt hàng.<div class="row" style="justify-content:center;margin-top:12px">${impBtn("products", "pri")}</div></div>` : !items.length ? `<div class="empty">Không có mặt hàng nào khớp bộ lọc.</div>` :
     `<div class="tbl"><table><thead><tr><th>Mặt hàng</th><th>Nhóm</th><th class="r">Tồn kho</th>${owner ? '<th class="r">Giá vốn</th>' : ""}<th class="r">Giá bán</th><th>Hạn dùng gần nhất</th><th>Tình trạng</th></tr></thead><tbody>${show.map(p => {
       const st = prodStatus(p), e = expInfo(p);
-      return `<tr class="click" data-act="${isOwner() ? "editProduct" : "viewProduct"}" data-id="${esc(p.id)}"><td><div class="pn">${p.isCombo ? '<span class="pill blue">combo</span> ' : ""}${esc(p.name)}</div><div class="ps">${esc(p.code)}${p.barcode ? " · " + esc(p.barcode) : ""}${p.location ? " · " + esc(p.location) : ""}${(p.units || []).length ? " · " + p.units.map(u => `1 ${esc(u.name)} = ${fq(u.ratio)} ${esc(p.unit)}`).join(", ") : ""}</div></td>
+      return `<tr class="click" data-act="${can("stock") ? "editProduct" : "viewProduct"}" data-id="${esc(p.id)}"><td><div class="pn">${p.isCombo ? '<span class="pill blue">combo</span> ' : ""}${esc(p.name)}</div><div class="ps">${esc(p.code)}${p.barcode ? " · " + esc(p.barcode) : ""}${p.location ? " · " + esc(p.location) : ""}${(p.units || []).length ? " · " + p.units.map(u => `1 ${esc(u.name)} = ${fq(u.ratio)} ${esc(p.unit)}`).join(", ") : ""}</div></td>
         <td class="ps">${esc(p.group || "")}</td><td class="r"><b>${esc(stockText(p))}</b></td>${owner ? `<td class="r">${fmt(p.cost)}</td>` : ""}<td class="r">${fmt(p.price)}</td>
         <td class="num">${e.near ? `${vnDate(e.near)} <span class="ps">(${e.left} ngày${e.nearQty ? ", " + fq(e.nearQty) + " " + esc(p.unit) : ""})</span>` : '<span class="ps">—</span>'}${e.expired ? `<div class="pill red">${fq(e.expired)} ${esc(p.unit)} đã hết hạn</div>` : ""}</td>
         <td><span class="pill ${st.k}">${st.t}</span></td></tr>`;
@@ -265,7 +265,7 @@ ACT.pfDelete = async () => { const r = await run(() => api("DELETE", "/api/produ
 S.rcPeriod = "30d"; S.rc = null;
 VIEWS.receipts = async function () {
   const [a, b] = periodRange(S.rcPeriod);
-  $("#main").innerHTML = `<div class="page"><div class="head"><h1>Nhập hàng</h1>${isOwner() ? `<button class="btn" data-act="go" data-v="inin">${icon("inin")} Từ hóa đơn điện tử${S.inNew ? ` (${S.inNew})` : ""}</button>` : ""}<button class="btn pri" data-act="rcNew">+ Phiếu nhập</button></div>
+  $("#main").innerHTML = `<div class="page"><div class="head"><h1>Nhập hàng</h1>${can("tax") ? `<button class="btn" data-act="go" data-v="inin">${icon("inin")} Từ hóa đơn điện tử${S.inNew ? ` (${S.inNew})` : ""}</button>` : ""}<button class="btn pri" data-act="rcNew">+ Phiếu nhập</button></div>
     <div class="chips" style="margin-bottom:12px">${periodChips(S.rcPeriod, "rcPeriod")}</div><div id="rcList"><div class="muted">Đang tải…</div></div></div>`;
   const list = await run(() => api("GET", `/api/receipts?from=${a}&to=${b}`)); if (!list || S.view !== "receipts") return;
   const tot = list.filter(x => !x.void).reduce((s, x) => s + x.total, 0), debt = list.filter(x => !x.void).reduce((s, x) => s + x.debt, 0);

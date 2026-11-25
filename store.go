@@ -74,6 +74,8 @@ type Party struct {
 	Debt    float64 `json:"debt"`
 	Created int64   `json:"created"`
 	Last    int64   `json:"last"`
+	Spend   float64 `json:"spend,omitempty"` // tổng đã mua (chỉ tính khi gửi cho giao diện)
+	Tier    string  `json:"tier,omitempty"`  // hạng khách (chỉ tính khi gửi cho giao diện)
 }
 
 type Line struct {
@@ -105,6 +107,8 @@ type Invoice struct {
 	CustName string  `json:"custName"`
 	Staff    string  `json:"staff"`
 	Note     string  `json:"note"`
+	Promo    float64 `json:"promo,omitempty"`     // phần giảm giá tự động do khuyến mãi (đã nằm trong Disc)
+	PromoNote string `json:"promoNote,omitempty"`
 	OrderID  string  `json:"orderId,omitempty"`
 	Src      string  `json:"src,omitempty"` // "import" = lịch sử nhập từ phần mềm khác
 	Void     bool    `json:"void"`
@@ -231,6 +235,8 @@ type Settings struct {
 	TermsBy        string  `json:"termsBy"`
 	UpdateOff      bool    `json:"updateOff"` // tắt tự kiểm tra cập nhật hằng ngày
 	GdtUser        string  `json:"gdtUser"` // tài khoản (MST) đăng nhập hoadondientu.gdt.gov.vn; không lưu mật khẩu
+	Promos         []Promo `json:"promos"`
+	Tiers          []Tier  `json:"tiers"`
 }
 
 type State struct {

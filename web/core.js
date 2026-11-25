@@ -58,22 +58,27 @@ const IC = {
 };
 const icon = (k, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k] || ""}</svg>`;
 
+// Mục thứ ba: quyền cần có (nhiều quyền cách nhau "|"; có một trong số đó là được; bỏ trống = ai cũng vào được)
 const NAV = [
-  ["pos", "Bán hàng"], ["orders", "Đơn đặt / Zalo"], ["products", "Hàng hóa"], ["receipts", "Nhập hàng"], ["inin", "Hóa đơn đầu vào", true], ["counts", "Kiểm kho"],
-  ["customers", "Khách hàng"], ["suppliers", "Nhà cung cấp"], ["cash", "Sổ quỹ"], ["report", "Báo cáo"], ["combos", "Combo & khuyến mãi", true],
-  ["import", "Nhập từ Excel", true], ["settings", "Cài đặt", true],
+  ["pos", "Bán hàng", "sell"], ["orders", "Đơn đặt / Zalo", "sell"], ["products", "Hàng hóa"], ["receipts", "Nhập hàng", "stock|money"], ["inin", "Hóa đơn đầu vào", "tax"], ["counts", "Kiểm kho", "stock"],
+  ["customers", "Khách hàng", "sell|money"], ["suppliers", "Nhà cung cấp", "stock|money"], ["cash", "Sổ quỹ", "money"], ["report", "Báo cáo", "report"], ["combos", "Combo & khuyến mãi", "manage"],
+  ["import", "Nhập từ Excel", "import"], ["settings", "Cài đặt", "admin"],
 ];
+const ROLE_NAME = { owner: "Chủ cửa hàng", manager: "Quản lý", cashier: "Thu ngân", warehouse: "Thủ kho", accountant: "Kế toán" };
+const can = p => !p || (S.me && (S.me.perms || []).some(x => p.split("|").includes(x)));
+const navOK = n => can(n[2]);
 
 /* ---------- trạng thái chung ---------- */
 const S = {
   me: null, settings: {}, products: new Map(), customers: new Map(), suppliers: new Map(), orders: new Map(),
   pop: {}, users: [], lan: [], version: 0, view: "pos", hasKey: false, dataDir: "", today: dkey(),
 };
-const isOwner = () => S.me && S.me.role === "owner";
-const seeCost = () => isOwner() || S.settings.staffSeeCost;
+const isAdmin = () => can("admin");
+const isOwner = () => can("manage"); // chủ hoặc quản lý: xóa, hủy, điều chỉnh công nợ
+const seeCost = () => can("cost") || S.settings.staffSeeCost;
 const VIEWS = {};
 // Nút "Nhập từ Excel" đặt ở đầu các trang danh mục; k = loại dữ liệu chọn sẵn
-const impBtn = (k, cls = "") => isOwner() ? `<button class="btn sm ${cls}" data-act="impGo" data-k="${k}">${icon("import")} Nhập từ Excel</button>` : "";
+const impBtn = (k, cls = "") => can("import") ? `<button class="btn sm ${cls}" data-act="impGo" data-k="${k}">${icon("import")} Nhập từ Excel</button>` : "";
 const ACT = {};
 const ON_INPUT = {};
 const ON_CHANGE = {};
@@ -231,13 +236,13 @@ function navBadge(k) {
   return "";
 }
 function renderShell() {
-  const nav = NAV.filter(n => !n[2] || isOwner()).map(([k, t], i) =>
+  const nav = NAV.filter(navOK).map(([k, t], i) =>
     (k === "combos" ? '<div class="navsep"></div>' : "") + `<button class="nav" data-act="go" data-v="${k}" aria-current="${S.view === k ? "page" : "false"}">${icon(k)}<span>${t}</span>${navBadge(k)}</button>`).join("");
   const d = new Date();
   $("#app").innerHTML = `<div class="shell">
     <aside class="side"><div class="brand"><small>Digital Shop</small><b id="shopName">${esc(S.settings.shopName || "Digital Shop")}</b><span class="num">${WD[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)}</span></div>
       <nav id="nav" aria-label="Chức năng">${nav}</nav>
-      <div class="me">${icon("user")}<span class="grow">${esc(S.me.name)}${isOwner() ? "" : " · nhân viên"}</span><button class="btn sm ghost" style="color:inherit" data-act="logout">Thoát</button></div></aside>
+      <div class="me">${icon("user")}<span class="grow">${esc(S.me.name)}${S.me.role === "owner" ? "" : " · " + (ROLE_NAME[S.me.role] || "nhân viên").toLowerCase()}</span><button class="btn sm ghost" style="color:inherit" data-act="logout">Thoát</button></div></aside>
     <header class="mtop"><b>${esc(S.settings.shopName || "Digital Shop")}</b><button class="btn sm" data-act="go" data-v="settings" style="background:transparent;color:inherit;border-color:rgba(255,255,255,.4)">${icon("settings")}</button></header>
     <main class="main" id="main"></main>
     <nav class="bottom" id="bottom"></nav></div>`;
@@ -245,7 +250,7 @@ function renderShell() {
 }
 function renderNav() {
   const n = $("#nav");
-  if (n) n.innerHTML = NAV.filter(n => !n[2] || isOwner()).map(([k, t]) =>
+  if (n) n.innerHTML = NAV.filter(navOK).map(([k, t]) =>
     (k === "combos" ? '<div class="navsep"></div>' : "") + `<button class="nav" data-act="go" data-v="${k}" aria-current="${S.view === k ? "page" : "false"}">${icon(k)}<span>${t}</span>${navBadge(k)}</button>`).join("");
   const b = $("#bottom");
   if (b) {
@@ -280,7 +285,7 @@ function go(v) {
 ACT.go = b => { closeSheet(); go(b.dataset.v); };
 ACT.close = () => closeSheet();
 ACT.moreMenu = () => openSheet(`<div class="sheet-h"><h2>Chức năng</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
-  <div class="grid2">${NAV.filter(n => !n[2] || isOwner()).map(([k, t]) => `<button class="btn" style="justify-content:flex-start" data-act="go" data-v="${k}">${icon(k)} ${t}</button>`).join("")}
+  <div class="grid2">${NAV.filter(navOK).map(([k, t]) => `<button class="btn" style="justify-content:flex-start" data-act="go" data-v="${k}">${icon(k)} ${t}</button>`).join("")}
   <button class="btn" style="justify-content:flex-start" data-act="logout">${icon("user")} Đăng xuất (${esc(S.me.name)})</button></div>`);
 ACT.logout = async () => { await api("POST", "/api/logout").catch(() => {}); closeSheet(); showLogin(); };
 
@@ -298,7 +303,7 @@ async function enterApp() {
   const h = location.hash.slice(1);
   S.view = VIEWS[h] ? h : store.get("view", "pos");
   await refresh();
-  if (!VIEWS[S.view] || (NAV.find(n => n[0] === S.view) || [])[2] && !isOwner()) go("pos");
+  if (!VIEWS[S.view] || !navOK(NAV.find(n => n[0] === S.view) || [])) go((NAV.find(navOK) || ["pos"])[0]);
   startPoll();
 }
 function showSetup() {
@@ -413,7 +418,8 @@ function receiptHtml(inv) {
     <div>Thu ngân: ${esc(inv.staff || "")}</div><hr>
     <table>${lines}</table><hr>
     <table><tr><td>Tiền hàng</td><td colspan="2" class="r">${fmt(inv.sub)}</td></tr>
-    ${inv.disc ? `<tr><td>Giảm giá</td><td colspan="2" class="r">-${fmt(inv.disc)}</td></tr>` : ""}
+    ${inv.promo ? `<tr><td>Khuyến mãi${inv.promoNote ? " (" + esc(inv.promoNote) + ")" : ""}</td><td colspan="2" class="r">-${fmt(inv.promo)}</td></tr>` : ""}
+    ${inv.disc - (inv.promo || 0) > 0 ? `<tr><td>Giảm giá</td><td colspan="2" class="r">-${fmt(inv.disc - (inv.promo || 0))}</td></tr>` : ""}
     <tr><td class="big">TỔNG CỘNG</td><td colspan="2" class="r big">${fmt(inv.total)}</td></tr>${pay}
     ${cust && inv.debt ? `<tr><td>Tổng nợ hiện tại</td><td colspan="2" class="r">${fmt(cust.debt)}</td></tr>` : ""}</table>
     ${inv.note ? `<div>Ghi chú: ${esc(inv.note)}</div>` : ""}${qr}
@@ -500,14 +506,14 @@ function licBar() {
   const d = document.createElement("div");
   d.id = "licBar";
   d.style.cssText = "margin:0 0 10px;padding:9px 14px;border-radius:8px;font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:" + (bad ? "#fde2e0;color:#8a1c14" : "#fff4d6;color:#6b4a00");
-  d.innerHTML = "<span style='flex:1'>" + esc(msg) + "</span>" + (isOwner() ? "<button class='btn sm' data-act='go' data-v='settings'>Bản quyền</button>" : "<span class='ps'>Nhờ chủ cửa hàng xử lý</span>");
+  d.innerHTML = "<span style='flex:1'>" + esc(msg) + "</span>" + (isAdmin() ? "<button class='btn sm' data-act='go' data-v='settings'>Bản quyền</button>" : "<span class='ps'>Nhờ chủ cửa hàng xử lý</span>");
   main.prepend(d);
 }
 
 /* ---------- tự kiểm tra bản mới mỗi ngày (chỉ chủ cửa hàng, chỉ báo, không tự cài) ---------- */
 let updChecked = false;
 async function autoUpdCheck() {
-  if (updChecked || !isOwner() || (S.settings && S.settings.updateOff)) return;
+  if (updChecked || !isAdmin() || (S.settings && S.settings.updateOff)) return;
   updChecked = true;
   try {
     const last = +store.get("updAt", 0) || 0;

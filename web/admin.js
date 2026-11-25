@@ -15,9 +15,9 @@ VIEWS.customers = function () {
     <div class="ledger"><div class="ledger-head"><div><div class="lbl">Tổng tiền khách đang nợ</div><div class="hand num" style="color:var(--red)">${money(total)}</div></div><div class="ps" style="padding-bottom:4px">${owing} khách đang nợ · ${all.length} khách trong sổ</div></div>
     ${!all.length ? `<div style="padding:20px 16px 20px 60px" class="muted">Sổ còn trống. Bấm <b>Nhập từ Excel</b> để lấy danh sách khách và công nợ từ KiotViet/MISA, hoặc bấm + Khách hàng.</div>` :
       !items.length ? `<div style="padding:20px 16px 20px 60px" class="muted">Không tìm thấy khách “${esc(S.cQ)}”.</div>` :
-      items.slice(0, 500).map((c, i) => `<button class="debtrow" data-act="custOpenD" data-id="${esc(c.id)}"><span class="idx num">${i + 1}</span><span class="who">${esc(c.name)}</span>
+      items.slice(0, 500).map((c, i) => `<button class="debtrow" data-act="custOpenD" data-id="${esc(c.id)}"><span class="idx num">${i + 1}</span><span class="who">${esc(c.name)}${c.tier ? ` <span class="pill amber">${esc(c.tier)}</span>` : ""}</span>
         <span class="amt num ${(c.debt || 0) <= 0 ? "zero" : ""}">${(c.debt || 0) <= 0 ? (c.debt < 0 ? "trả dư " + fmt(-c.debt) : "không nợ") : money(c.debt)}</span>
-        <span class="meta">${c.phone ? esc(c.phone) + " · " : ""}${esc(c.code)}${c.last ? " · giao dịch " + new Date(c.last).toLocaleDateString("vi-VN") : ""}${c.note ? " · " + esc(c.note) : ""}</span></button>`).join("")}
+        <span class="meta">${c.phone ? esc(c.phone) + " · " : ""}${esc(c.code)}${c.spend ? " · đã mua " + fmt(c.spend) : ""}${c.last ? " · giao dịch " + new Date(c.last).toLocaleDateString("vi-VN") : ""}${c.note ? " · " + esc(c.note) : ""}</span></button>`).join("")}
     </div></div>`;
 };
 ON_INPUT.cQ = el => { S.cQ = el.value; VIEWS.customers(); };
@@ -183,6 +183,7 @@ VIEWS.report = async function () {
       <div><div class="k">Tiền nhập hàng</div><div class="v">${money(F.buyTotal || 0)}</div></div><div><div class="k">Chi phí khác</div><div class="v">${money((F.chi_cash || 0) + (F.chi_bank || 0) - (F.suppPaid || 0))}</div></div>
       <div><div class="k">Tiền mặt ròng trong kỳ</div><div class="v">${money(F.netCash || 0)}</div></div><div><div class="k">Tài khoản ròng trong kỳ</div><div class="v">${money(F.netBank || 0)}</div></div></div>
     <div class="grid2" style="margin-top:18px;align-items:start">
+      <div class="section"><h2>Xếp hạng khách hàng theo doanh số</h2>${(rp.custs || []).length ? `<div class="tbl"><table><thead><tr><th>#</th><th>Khách hàng</th><th>Hạng</th><th class="r">Số đơn</th><th class="r">Doanh số kỳ này</th><th class="r">Tổng đã mua</th></tr></thead><tbody>${rp.custs.slice(0, 20).map((c, i) => `<tr><td class="ps num">${i + 1}</td><td class="pn">${esc(c.name)}</td><td>${c.tier ? `<span class="pill amber">${esc(c.tier)}</span>` : '<span class="ps">—</span>'}</td><td class="r">${fmt(c.n)}</td><td class="r"><b>${fmt(c.rev)}</b></td><td class="r">${fmt(c.spend)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">Chưa có hóa đơn bán cho khách có tên trong kỳ này.</div>`}</div>
       <div class="section"><h2>Hàng bán chạy</h2>${rp.top.length ? `<div class="tbl"><table><thead><tr><th>#</th><th>Mặt hàng</th><th class="r">Đã bán</th><th class="r">Doanh thu</th>${owner ? '<th class="r">Lãi</th>' : ""}</tr></thead><tbody>${rp.top.slice(0, 15).map((t, i) => `<tr><td class="ps num">${i + 1}</td><td><div class="pn">${esc(t.name)}</div><div class="hbar"><i style="width:${(t.rev / topMax * 100).toFixed(1)}%"></i></div></td><td class="r">${fq(t.qty)} ${esc(t.unit)}</td><td class="r"><b>${fmt(t.rev)}</b></td>${owner ? `<td class="r">${fmt(t.profit)}</td>` : ""}</tr>`).join("")}</tbody></table></div>` : `<div class="empty">Chưa có hàng bán ra.</div>`}</div>
       <div class="section"><h2>Theo nhóm hàng</h2>${rp.groups.length ? `<div class="tbl"><table><thead><tr><th>Nhóm</th><th class="r">Doanh thu</th>${owner ? '<th class="r">Lãi</th><th class="r">Biên</th>' : ""}</tr></thead><tbody>${rp.groups.map(g => `<tr><td class="pn">${esc(g.name)}</td><td class="r">${fmt(g.rev)}</td>${owner ? `<td class="r">${fmt(g.profit)}</td><td class="r ps">${g.rev ? (g.profit / g.rev * 100).toFixed(0) : 0}%</td>` : ""}</tr>`).join("")}</tbody></table></div>` : ""}
         ${(rp.staff || []).length > 1 ? `<h2 style="margin-top:12px">Theo thu ngân</h2><div class="tbl"><table><tbody>${rp.staff.map(s => `<tr><td>${esc(s.name)}</td><td class="r">${s.n} HĐ</td><td class="r"><b>${fmt(s.rev)}</b></td></tr>`).join("")}</tbody></table></div>` : ""}</div></div>
@@ -223,7 +224,9 @@ VIEWS.combos = async function () {
       <label class="ps" for="cbDays">Dựa trên đơn bán</label><select id="cbDays" class="in" style="width:auto">${[30, 60, 90, 180, 365].map(d => `<option value="${d}" ${d === S.cbDays ? "selected" : ""}>${d} ngày gần nhất</option>`).join("")}</select>
       <button class="btn sm pri" data-act="newCombo">+ Tạo combo</button></div>
     <p class="muted" style="margin:-6px 0 14px;max-width:760px">Gợi ý được tính từ chính hóa đơn của tiệm: món nào hay được mua cùng nhau, hàng nào sắp hết hạn cần xả, hàng nào lâu không bán được. Giá đề xuất luôn giữ lãi tối thiểu ${S.settings.minMargin || 10}% trên giá vốn (đổi trong Cài đặt).</p>
+    <div id="promoBox"></div>
     <div id="cbBody"><div class="muted">Đang phân tích…</div></div></div>`;
+  promoRender();
   const d = await run(() => api("GET", "/api/combos?days=" + S.cbDays)); if (!d || S.view !== "combos") return;
   S.cbData = d;
   const card = (c, i, sec) => `<div class="combo-card">
@@ -331,7 +334,7 @@ function impResultHtml() {
 
 /* ================= CÀI ĐẶT ================= */
 VIEWS.settings = function () {
-  const st = S.settings, own = isOwner();
+  const st = S.settings, own = isAdmin();
   const lan = S.lan[0] || "";
   $("#main").innerHTML = `<div class="page" style="max-width:980px"><div class="head"><h1>Cài đặt</h1><span class="ps">Digital Shop ${esc(S.appVersion || "")}</span></div>
   ${own ? `<div class="card stack" style="margin-bottom:14px"><h2>Bản quyền</h2><div id="licBox" class="stack"><div class="ps">Đang tải…</div></div></div>
@@ -370,7 +373,7 @@ VIEWS.settings = function () {
       <div id="payCfg">${payCfgHtml()}</div></div>` : ""}
     <div class="card stack" style="margin-top:14px"><h2>Màn hình cho khách</h2>
       <p class="ps" style="margin:0">Màn hình thứ hai cắm vào máy tính tiền, hoặc máy tính bảng / điện thoại cũ đặt ở quầy, hiện tổng tiền và mã QR cho khách quét.</p>
-      <div class="row"><button class="btn" data-act="dispMenu">Cài màn hình khách</button>${isOwner() ? `<button class="btn ghost sm" data-act="dispKey" data-confirm="Bấm lần nữa: màn hình cũ sẽ phải mở lại">Đổi mã màn hình</button>` : ""}</div></div>
+      <div class="row"><button class="btn" data-act="dispMenu">Cài màn hình khách</button>${isAdmin() ? `<button class="btn ghost sm" data-act="dispKey" data-confirm="Bấm lần nữa: màn hình cũ sẽ phải mở lại">Đổi mã màn hình</button>` : ""}</div></div>
     <div class="card stack" style="margin-top:14px"><h2>Dùng trên điện thoại / máy khác</h2>
       ${lan ? `<div class="grid2" style="align-items:center"><div class="stack"><p style="margin:0">Điện thoại hoặc máy tính khác <b>bắt cùng wifi</b> với máy này, mở trình duyệt và vào:</p>${S.lan.map(u => `<div class="acct num" style="font-size:20px;font-weight:800;user-select:all">${esc(u)}</div>`).join("")}<p class="ps" style="margin:0">Lần đầu mở phần mềm, Windows có thể hỏi về tường lửa: chọn <b>Cho phép (Allow)</b>. Máy tính chính phải luôn bật Digital Shop.</p></div>
         <div style="display:grid;place-items:center;gap:6px"><div style="width:170px;background:#fff;padding:6px;border-radius:8px">${qrSvg(lan)}</div><span class="ps">Quét bằng camera điện thoại để mở</span></div></div>` : `<p class="ps" style="margin:0">Máy này chưa kết nối mạng nội bộ (wifi/LAN).</p>`}</div>
@@ -397,22 +400,22 @@ VIEWS.settings = function () {
   if (own) { loadLic(); loadBackups(); loadExt(); }
 };
 function usersHtml() {
-  const own = isOwner();
-  return `<div class="tbl"><table><tbody>${S.users.map(u => `<tr><td class="pn">${esc(u.name)}${u.id === S.me.id ? ' <span class="pill green">bạn</span>' : ""}</td><td>${u.role === "owner" ? "Chủ cửa hàng" : "Nhân viên bán hàng"}</td>
+  const own = isAdmin();
+  return `<div class="tbl"><table><tbody>${S.users.map(u => `<tr><td class="pn">${esc(u.name)}${u.id === S.me.id ? ' <span class="pill green">bạn</span>' : ""}</td><td>${ROLE_NAME[u.role] || "Thu ngân"}</td>
     <td class="r">${own || u.id === S.me.id ? `<button class="btn sm" data-act="userEdit" data-id="${esc(u.id)}">Đổi PIN / sửa</button>` : ""} ${own && u.id !== S.me.id ? `<button class="btn sm danger" data-act="userDel" data-id="${esc(u.id)}" data-confirm="Xóa?">Xóa</button>` : ""}</td></tr>`).join("")}</tbody></table></div>
     ${own ? `<div><button class="btn sm" data-act="userEdit" data-id="">+ Thêm nhân viên</button></div><p class="ps" style="margin:0">Nhân viên bán được hàng, nhận đơn đặt, thu nợ, nhập hàng, kiểm kho. Chỉ chủ cửa hàng được sửa giá, xóa hàng, hủy hóa đơn, xem lãi, nhập dữ liệu và cài đặt.</p>` : ""}`;
 }
 ACT.userEdit = b => {
   const u = S.users.find(x => x.id === b.dataset.id);
-  if (!isOwner() && (!u || u.id !== S.me.id)) return;
+  if (!isAdmin() && (!u || u.id !== S.me.id)) return;
   openSheet(`<div class="sheet-h"><h2>${u ? "Sửa " + esc(u.name) : "Thêm nhân viên"}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
     <form id="uForm" class="grid2" autocomplete="off"><div class="field"><label for="u-name">Tên</label><input id="u-name" class="in" required value="${esc(u?.name || "")}"></div>
-    <div class="field"><label for="u-role">Vai trò</label><select id="u-role" class="in" ${isOwner() ? "" : "disabled"}><option value="staff">Nhân viên bán hàng</option><option value="owner" ${u?.role === "owner" ? "selected" : ""}>Chủ cửa hàng</option></select></div>
+    <div class="field"><label for="u-role">Vai trò</label><select id="u-role" class="in" ${isAdmin() ? "" : "disabled"}>${["cashier", "warehouse", "accountant", "manager", "owner"].map(k => `<option value="${k}" ${(u ? (ROLE_NAME[u.role] ? u.role : "cashier") : "cashier") === k ? "selected" : ""}>${ROLE_NAME[k]}</option>`).join("")}</select><div class="ps" style="margin-top:4px">Thu ngân: chỉ bán hàng. Thủ kho: hàng hóa, nhập hàng, kiểm kho. Kế toán: sổ quỹ, công nợ, báo cáo, hóa đơn đầu vào. Quản lý: làm được mọi việc trừ cài đặt, người dùng và bản quyền.</div></div>
     <div class="field full"><label for="u-pin">${u ? "Mã PIN mới (để trống nếu giữ nguyên)" : "Mã PIN (4–8 số)"}</label><input id="u-pin" class="in num" inputmode="numeric" type="password" ${u ? "" : "required"} minlength="4" maxlength="8"></div>
     <div class="row full"><span class="grow"></span><button type="button" class="btn" data-act="close">Hủy</button><button class="btn pri">Lưu</button></div></form>`, { focus: "#u-name" });
   $("#uForm").addEventListener("submit", async e => {
     e.preventDefault();
-    if (!isOwner()) return toast("Nhờ chủ cửa hàng đổi PIN giúp", true);
+    if (!isAdmin()) return toast("Nhờ chủ cửa hàng đổi PIN giúp", true);
     const r = await run(() => api("POST", "/api/users", { id: u?.id || "", name: $("#u-name").value, role: $("#u-role").value, pin: $("#u-pin").value }), "Đã lưu");
     if (r) { closeSheet(); await refresh(true); }
   });
@@ -660,3 +663,81 @@ ACT.updApply = async () => {
   setTimeout(function again() { fetch("/api/ping").then(x => x.text()).then(t => { if (t === "taphoax") location.reload(); else setTimeout(again, 2000); }).catch(() => setTimeout(again, 2000)); }, 8000);
 };
 ON_CHANGE["upd-auto"] = async el => { await run(() => api("POST", "/api/update/config", { auto: el.checked })); };
+
+
+/* ================= KHUYẾN MÃI TỰ ĐỘNG & HẠNG KHÁCH ================= */
+const WDN = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+function tiersNow() { return (S.settings.tiers && S.settings.tiers.length ? S.settings.tiers : [{ name: "Bạc", min: 2000000 }, { name: "Vàng", min: 10000000 }, { name: "Kim cương", min: 30000000 }]).slice().sort((a, b) => a.min - b.min); }
+function promoWhen(p) {
+  const w = [];
+  if (p.days && p.days.length && p.days.length < 7) w.push(p.days.slice().sort().map(d => WDN[d]).join(", "));
+  if (p.tStart && p.tEnd) w.push(p.tStart + "–" + p.tEnd);
+  if (p.from || p.to) w.push((p.from ? vnDate(p.from) : "…") + " → " + (p.to ? vnDate(p.to) : "…"));
+  return w.join(" · ") || "Mọi lúc";
+}
+function promoWhat(p) {
+  const t = p.scope === "product" ? (S.products.get(p.target) || {}).name || "(mặt hàng đã xóa)" : p.scope === "group" ? "Nhóm " + p.target : "Toàn bộ hàng";
+  return t + " · giảm " + (p.kind === "amt" ? money(p.value) + "/đơn vị" : p.value + "%");
+}
+function promoRender() {
+  const box = $("#promoBox"); if (!box) return;
+  const list = S.settings.promos || [], tiers = tiersNow();
+  box.innerHTML = `<div class="section"><div class="row"><h2 class="grow" style="margin:0">Khuyến mãi tự động</h2><button class="btn sm pri" data-act="promoEdit" data-i="-1">+ Khuyến mãi</button></div>
+    <p class="muted" style="margin:6px 0 10px;max-width:760px">Khuyến mãi tự áp dụng khi bán hàng đúng khung giờ, đúng ngày, đúng hạng khách. Hết giờ tự về giá thường. Mỗi mặt hàng chỉ lấy một khuyến mãi có lợi nhất cho khách (không cộng dồn).</p>
+    ${list.length ? `<div class="tbl"><table><thead><tr><th>Chương trình</th><th>Áp dụng cho</th><th>Khi nào</th><th>Khách</th><th></th></tr></thead><tbody>${list.map((p, i) => `<tr class="click" data-act="promoEdit" data-i="${i}"><td class="pn">${esc(p.name)} ${p.active ? '<span class="pill green">đang bật</span>' : '<span class="pill mute">tắt</span>'}</td><td>${esc(promoWhat(p))}</td><td class="ps">${esc(promoWhen(p))}</td><td class="ps">${p.minTier ? "Hạng " + esc((tiers[p.minTier - 1] || {}).name || "") + " trở lên" : "Mọi khách"}</td><td class="r ps">Sửa</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">Chưa có khuyến mãi nào. Ví dụ: giảm 20% đồ uống từ 18h đến 22h, hoặc khách hạng Vàng giảm 5% mọi mặt hàng.</div>`}
+    <div class="card stack" style="margin-top:12px"><div class="row"><h3 class="grow" style="margin:0">Hạng khách hàng</h3><button class="btn sm" data-act="tierSave">Lưu hạng</button></div>
+      <p class="ps" style="margin:0">Khách đạt hạng khi tổng tiền đã mua (không tính hóa đơn hủy) đạt mức bên dưới. Xếp từ thấp đến cao.</p>
+      <div id="tierRows" class="stack">${tiers.map(t => tierRow(t)).join("")}</div>
+      <div><button class="btn sm" data-act="tierAdd">+ Thêm hạng</button></div></div></div>`;
+}
+const tierRow = t => `<div class="row tier"><input class="in grow t-name" placeholder="Tên hạng" value="${esc(t.name)}"><span class="ps">từ</span><input class="in r num t-min" style="width:150px" inputmode="numeric" value="${fmt(t.min)}"><span class="ps">đ</span><button class="btn sm ghost" data-act="tierDel" aria-label="Xóa hạng">×</button></div>`;
+ACT.tierAdd = () => { const d = document.createElement("div"); d.innerHTML = tierRow({ name: "", min: 0 }); $("#tierRows").appendChild(d.firstChild); };
+ACT.tierDel = b => b.closest(".tier").remove();
+async function promoPost(promos, tiers, okMsg) {
+  const r = await run(() => api("POST", "/api/promos", { promos, tiers }), okMsg);
+  if (r) { await refresh(true); promoRender(); }
+  return r;
+}
+ACT.tierSave = () => {
+  const tiers = [...document.querySelectorAll("#tierRows .tier")].map(r => ({ name: r.querySelector(".t-name").value.trim(), min: parseMoney(r.querySelector(".t-min").value) })).filter(t => t.name);
+  promoPost(S.settings.promos || [], tiers, "Đã lưu hạng khách hàng");
+};
+ACT.promoEdit = b => {
+  const i = +b.dataset.i, p = i >= 0 ? (S.settings.promos || [])[i] : { name: "", active: true, kind: "pct", value: 10, scope: "all", target: "", days: [], from: "", to: "", tStart: "", tEnd: "", minTier: 0 };
+  if (!p) return;
+  const tiers = tiersNow();
+  const groups = [...new Set([...S.products.values()].map(x => x.group).filter(Boolean))].sort((a, c) => a.localeCompare(c, "vi"));
+  const prodLabel = x => (x.code ? x.code + " · " : "") + x.name;
+  const curProd = p.scope === "product" ? S.products.get(p.target) : null;
+  openSheet(`<div class="sheet-h"><h2>${i >= 0 ? "Sửa khuyến mãi" : "Thêm khuyến mãi"}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <form id="promoForm" class="form">
+      <div class="field full"><label for="pm-name">Tên chương trình</label><input id="pm-name" class="in" value="${esc(p.name)}" placeholder="vd Giờ vàng đồ uống" required></div>
+      <div class="field"><label for="pm-kind">Cách giảm</label><select id="pm-kind" class="in"><option value="pct" ${p.kind !== "amt" ? "selected" : ""}>Giảm theo %</option><option value="amt" ${p.kind === "amt" ? "selected" : ""}>Giảm số tiền trên mỗi đơn vị bán</option></select></div>
+      <div class="field"><label for="pm-val">Mức giảm</label><input id="pm-val" class="in num" inputmode="decimal" value="${p.value}" required></div>
+      <div class="field"><label for="pm-scope">Áp dụng cho</label><select id="pm-scope" class="in"><option value="all" ${p.scope === "all" ? "selected" : ""}>Toàn bộ hàng</option><option value="group" ${p.scope === "group" ? "selected" : ""}>Một nhóm hàng</option><option value="product" ${p.scope === "product" ? "selected" : ""}>Một mặt hàng</option></select></div>
+      <div class="field"><label for="pm-target">Nhóm / mặt hàng</label><input id="pm-target" class="in" list="pm-list" autocomplete="off" value="${esc(p.scope === "group" ? p.target : curProd ? prodLabel(curProd) : "")}" placeholder="Chọn khi áp dụng cho nhóm hoặc mặt hàng"><datalist id="pm-list">${groups.map(g => `<option value="${esc(g)}">`).join("")}${[...S.products.values()].filter(x => !x.hidden).slice(0, 3000).map(x => `<option value="${esc(prodLabel(x))}">`).join("")}</datalist></div>
+      <div class="field full"><label>Ngày trong tuần (bỏ trống = mọi ngày)</label><div class="row" style="flex-wrap:wrap;gap:10px">${WDN.map((n, d) => `<label class="check"><input type="checkbox" class="pm-day" value="${d}" ${(p.days || []).includes(d) ? "checked" : ""}> ${n}</label>`).join("")}</div></div>
+      <div class="field"><label for="pm-ts">Từ giờ</label><input id="pm-ts" class="in" type="time" value="${esc(p.tStart || "")}"></div>
+      <div class="field"><label for="pm-te">Đến giờ (có thể qua nửa đêm)</label><input id="pm-te" class="in" type="time" value="${esc(p.tEnd || "")}"></div>
+      <div class="field"><label for="pm-from">Từ ngày</label><input id="pm-from" class="in" type="date" value="${esc(p.from || "")}"></div>
+      <div class="field"><label for="pm-to">Đến ngày</label><input id="pm-to" class="in" type="date" value="${esc(p.to || "")}"></div>
+      <div class="field full"><label for="pm-tier">Khách được hưởng</label><select id="pm-tier" class="in"><option value="0">Mọi khách (kể cả khách lẻ)</option>${tiers.map((t, k) => `<option value="${k + 1}" ${p.minTier === k + 1 ? "selected" : ""}>Khách hạng ${esc(t.name)} trở lên</option>`).join("")}</select></div>
+      <div class="field full"><label class="check"><input type="checkbox" id="pm-on" ${p.active ? "checked" : ""}> Đang bật</label></div>
+      <div class="row full">${i >= 0 ? `<button type="button" class="btn danger" data-act="promoDel" data-i="${i}" data-confirm="Bấm lần nữa để xóa">Xóa</button>` : ""}<span class="grow"></span><button type="button" class="btn" data-act="close">Hủy</button><button class="btn pri" type="submit">Lưu</button></div></form>`, { focus: "#pm-name" });
+  $("#promoForm").onsubmit = async ev => {
+    ev.preventDefault();
+    const scope = $("#pm-scope").value, tv = $("#pm-target").value.trim();
+    let target = "";
+    if (scope === "group") target = tv;
+    if (scope === "product") { const f = [...S.products.values()].find(x => prodLabel(x) === tv || x.name === tv); if (!f) return toast("Chọn mặt hàng trong danh sách gợi ý", true); target = f.id; }
+    const np = { id: p.id || "", name: $("#pm-name").value.trim(), active: $("#pm-on").checked, kind: $("#pm-kind").value, value: parseFloat(String($("#pm-val").value).replace(",", ".")) || 0, scope, target,
+      days: [...document.querySelectorAll(".pm-day:checked")].map(x => +x.value), from: $("#pm-from").value, to: $("#pm-to").value, tStart: $("#pm-ts").value, tEnd: $("#pm-te").value, minTier: +$("#pm-tier").value };
+    const all = (S.settings.promos || []).slice();
+    if (i >= 0) all[i] = np; else all.push(np);
+    if (await promoPost(all, tiersNow(), "Đã lưu khuyến mãi")) closeSheet();
+  };
+};
+ACT.promoDel = async b => {
+  const all = (S.settings.promos || []).filter((_, k) => k !== +b.dataset.i);
+  if (await promoPost(all, tiersNow(), "Đã xóa khuyến mãi")) closeSheet();
+};

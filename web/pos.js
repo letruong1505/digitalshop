@@ -6,13 +6,36 @@ S.posQ = ""; S.posGroup = ""; S.posFilter = ""; S.lastSale = null; S.custOpen = 
 const newTab = () => ({ cid: uid(), lines: [], custId: "", method: "cash", given: "", disc: "", note: "", orderId: "" });
 if (!S.tabs.length) S.tabs = [newTab()];
 function curTab() { if (S.tabIdx >= S.tabs.length) S.tabIdx = S.tabs.length - 1; if (S.tabIdx < 0) S.tabIdx = 0; return S.tabs[S.tabIdx]; }
-function saveTabs() { store.set("tabs", S.tabs); store.set("tabIdx", S.tabIdx); }
-const canEditPrice = () => isOwner() || S.settings.staffEditPrice;
+function saveTabs() { store.set("tabs", S.tabs.map(({ promo, promoSig, ...r }) => r)); store.set("tabIdx", S.tabIdx); }
+const canEditPrice = () => can("price") || S.settings.staffEditPrice;
 
 function tabTotals(t) {
   const sub = Math.round(t.lines.reduce((a, l) => a + l.qty * l.price, 0));
-  const disc = Math.min(parseMoney(t.disc), sub);
-  return { sub, disc, total: Math.max(0, sub - disc), n: t.lines.length };
+  const promo = Math.min((t.promo && t.promo.disc) || 0, sub);
+  const disc = Math.min(parseMoney(t.disc), sub - promo);
+  return { sub, disc, promo, total: Math.max(0, sub - promo - disc), n: t.lines.length };
+}
+/* Khuyến mãi tự động: hỏi máy chủ (máy chủ cũng tự tính lại lúc lập hóa đơn nên luôn đúng giờ, đúng hạng khách) */
+let promoTimer = null;
+const promoSig = t => JSON.stringify([t.custId, t.lines.map(l => [l.pid, l.unit, l.ratio, l.qty, l.price])]);
+function promoSync(t) {
+  if (!(S.settings.promos || []).some(p => p.active) || !t.lines.length) { t.promo = null; t.promoSig = ""; return; }
+  const sig = promoSig(t);
+  if (t.promoSig === sig) return;
+  t.promoSig = sig; clearTimeout(promoTimer);
+  promoTimer = setTimeout(async () => {
+    try {
+      const r = await api("POST", "/api/promo/quote", { lines: t.lines.map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio, qty: l.qty, price: l.price })), custId: t.custId });
+      if (t.promoSig !== sig) return;
+      const old = (t.promo && t.promo.disc) || 0;
+      t.promo = r.disc > 0 ? { disc: r.disc, hits: r.hits || [] } : null;
+      if (((t.promo && t.promo.disc) || 0) !== old && curTab() === t) {
+        const a = document.activeElement;
+        if (!(a && ["posGiven", "posNote", "posDisc", "custQ"].includes(a.id))) renderCart();
+        else { const d = $("#posDue"); if (d) d.textContent = money(tabTotals(t).total); }
+      }
+    } catch (e) {}
+  }, 250);
 }
 function addLine(pid, unit) {
   const p = S.products.get(pid); if (!p) return;
@@ -66,7 +89,7 @@ function renderTiles() {
   const inCart = {}; curTab().lines.forEach(l => inCart[l.pid] = r3((inCart[l.pid] || 0) + l.qty * l.ratio));
   let h;
   if (!S.products.size) h = `<div class="empty"><b>Chưa có mặt hàng nào</b>Bấm <b>Nhập từ file Excel</b> để lấy danh mục từ KiotViet / MISA, hoặc <b>Hàng hóa → + Mặt hàng</b>.<div class="row" style="justify-content:center;margin-top:12px">${isOwner() ? `<button class="btn pri" data-act="impGo" data-k="products">Nhập từ file Excel</button>` : ""}<button class="btn" data-act="go" data-v="products">Thêm mặt hàng</button></div></div>`;
-  else if (!items.length) h = `<div class="empty"><b>Không tìm thấy “${esc(q)}”</b>Thử gõ ngắn hơn hoặc bỏ dấu.${isOwner() && q ? ` <button class="btn sm" data-act="newProduct" data-name="${esc(q)}">Thêm mặt hàng mới</button>` : ""}</div>`;
+  else if (!items.length) h = `<div class="empty"><b>Không tìm thấy “${esc(q)}”</b>Thử gõ ngắn hơn hoặc bỏ dấu.${can("stock") && q ? ` <button class="btn sm" data-act="newProduct" data-name="${esc(q)}">Thêm mặt hàng mới</button>` : ""}</div>`;
   else {
     const show = items.slice(0, 120);
     h = `<div class="tiles">` + show.map(p => {
@@ -88,7 +111,8 @@ function renderTiles() {
 
 function renderCart() {
   if (S.view !== "pos" || !$("#cart")) return;
-  const t = curTab(), T = tabTotals(t);
+  const t = curTab(); promoSync(t);
+  const T = tabTotals(t);
   const cust = t.custId ? S.customers.get(t.custId) : null;
   let h = `<div class="tabs" role="tablist">${S.tabs.map((x, i) => { const n = x.lines.length; return `<button role="tab" data-act="tab" data-i="${i}" aria-current="${i === S.tabIdx}">HĐ ${i + 1}${n ? ` <span class="pill mute">${n}</span>` : ""}${x.orderId ? ' <span class="pill amber">đặt</span>' : ""}${S.tabs.length > 1 ? `<span class="tx" data-act="closeTab" data-i="${i}" title="Đóng">×</span>` : ""}</button>`; }).join("")}
     <button data-act="newTab" title="Hóa đơn mới (F4)">+</button><span class="grow"></span><button class="x only-m" data-act="closeCart" aria-label="Đóng hóa đơn">×</button></div>`;
@@ -96,7 +120,7 @@ function renderCart() {
   if (S.custOpen) {
     h += `<div class="search">${icon("search")}<input id="custQ" class="in" autocomplete="off" placeholder="Tìm khách theo tên, số điện thoại (F8)" value="${esc(S.custQ)}"></div><div class="dd" id="custDD">${pickList("customer", S.custQ, "posCust")}</div>`;
   } else if (cust) {
-    h += `<div class="row"><button class="custbtn grow" data-act="custOpen">${icon("user")}<span>${esc(cust.name)} <span class="ps">${esc(cust.phone || "")}</span></span>${cust.debt ? `<span class="d num">nợ ${fmt(cust.debt)}</span>` : ""}</button><button class="x" data-act="custClear" title="Bỏ chọn khách">×</button></div>`;
+    h += `<div class="row"><button class="custbtn grow" data-act="custOpen">${icon("user")}<span>${esc(cust.name)} <span class="ps">${esc(cust.phone || "")}</span>${cust.tier ? ` <span class="pill amber">${esc(cust.tier)}</span>` : ""}</span>${cust.debt ? `<span class="d num">nợ ${fmt(cust.debt)}</span>` : ""}</button><button class="x" data-act="custClear" title="Bỏ chọn khách">×</button></div>`;
   } else {
     h += `<button class="custbtn" data-act="custOpen">${icon("user")}<span class="muted">Khách lẻ · bấm để chọn khách (F8)</span></button>`;
   }
@@ -127,6 +151,7 @@ function renderCart() {
   }).join("") + `<div class="field" style="padding:8px 0"><input id="posNote" class="in sm" placeholder="Ghi chú hóa đơn" value="${esc(t.note)}"></div></div>`;
   h += `<div class="pay">
     <div class="sumrow"><span class="muted">Tiền hàng (${T.n} món)</span><span class="num">${money(T.sub)}</span></div>
+    ${T.promo > 0 ? `<div class="sumrow" style="color:var(--green-text)"><span>Khuyến mãi${t.promo && t.promo.hits.length ? ": " + esc(t.promo.hits.map(x => x.name).join(", ")) : ""}</span><span class="num">-${money(T.promo)}</span></div>` : ""}
     <div class="sumrow"><label for="posDisc" class="muted">Giảm giá</label><input id="posDisc" class="in sm r num" style="width:130px" inputmode="numeric" placeholder="0" value="${esc(t.disc)}"></div>
     <div class="sumrow"><span class="lbl">Khách cần trả</span><span class="due" id="posDue">${money(T.total)}</span></div>
     <div class="seg" role="group" aria-label="Hình thức thanh toán">
@@ -158,7 +183,7 @@ function payQR(t, T) {
 }
 function bankBoxHtml(t, T) {
   const st = S.settings;
-  if (!st.payProvider && !st.acct) return `<div class="banner">Chưa có số tài khoản nhận tiền.${isOwner() ? ` <button class="btn sm" data-act="go" data-v="settings">Thêm trong Cài đặt</button>` : ""}</div>`;
+  if (!st.payProvider && !st.acct) return `<div class="banner">Chưa có số tài khoản nhận tiền.${isAdmin() ? ` <button class="btn sm" data-act="go" data-v="settings">Thêm trong Cài đặt</button>` : ""}</div>`;
   if (st.payProvider && (!t.pay || t.pay.amount !== T.total || t.pay.status === "expired")) { ensurePay(); return `<div class="qrbox"><div class="grow">Đang tạo mã QR cho ${money(T.total)}…</div></div>`; }
   const qr = payQR(t, T), p = t.pay;
   let status = `<div class="small" style="margin-top:4px">Khách quét mã, số tiền <b>${money(T.total)}</b> đã điền sẵn.</div>`;
@@ -207,7 +232,7 @@ function postDisplay(force) {
     const t = curTab(), T = tabTotals(t), st = S.settings;
     const lines = t.lines.map(l => { const p = S.products.get(l.pid) || {}; return { n: p.name || l.name || "", q: l.qty, u: l.unit, p: l.price, t: Math.round(l.qty * l.price) }; });
     const qr = t.method === "bank" && T.total > 0 ? payQR(t, T) : "";
-    const d = { status: T.n ? (qr ? "qr" : "cart") : "idle", lines: lines.slice(-10), count: lines.length, sub: T.sub, disc: T.disc, total: T.total, method: t.method,
+    const d = { status: T.n ? (qr ? "qr" : "cart") : "idle", lines: lines.slice(-10), count: lines.length, sub: T.sub, disc: T.disc + T.promo, total: T.total, method: t.method,
       qr, bank: { name: st.bankName || "", acct: st.acct || "", holder: st.holder || "" }, paid: !!(t.pay && t.pay.status === "paid"), cust: (S.customers.get(t.custId) || {}).name || "" };
     const s = JSON.stringify(d);
     if (s === dispLast && !force) return;
@@ -359,7 +384,7 @@ function loadOrderToPOS(o) {
 const SCAN = { buf: "", last: 0, fast: 0 };
 const scanHandlers = {}; // ngữ cảnh khác (phiếu nhập, kiểm kho) đăng ký tại đây
 function unknownBarcode(code) {
-  if (!isOwner()) return toast("Mã vạch " + code + " chưa có trong kho. Báo chủ tiệm thêm mặt hàng", true);
+  if (!can("stock")) return toast("Mã vạch " + code + " chưa có trong kho. Báo chủ tiệm thêm mặt hàng", true);
   openSheet(`<div class="sheet-h"><h2>Mã vạch chưa có trong kho</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
     <p style="margin:0">Mã <b class="num">${esc(code)}</b> chưa gắn với mặt hàng nào.</p>
     <div class="row"><button class="btn pri" data-act="newProduct" data-barcode="${esc(code)}">Tạo mặt hàng mới với mã này</button><button class="btn" data-act="attachBarcode" data-code="${esc(code)}">Gắn vào mặt hàng có sẵn</button></div>`);

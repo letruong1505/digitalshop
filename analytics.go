@@ -25,6 +25,7 @@ type Report struct {
 	Top      []map[string]any `json:"top"`
 	Groups   []map[string]any `json:"groups"`
 	Staff    []map[string]any `json:"staff"`
+	Custs    []map[string]any `json:"custs"`
 	Flow     map[string]float64 `json:"flow"`
 	Imported int              `json:"imported"`
 }
@@ -41,6 +42,7 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 		top := map[string]*agg{}
 		grp := map[string]*[2]float64{}
 		staff := map[string]*[2]float64{}
+		cust := map[string]*[2]float64{}
 		series := map[string]*[3]float64{}
 		for _, inv := range s.Invoices {
 			if !inRange(inv.Time, from, to) { continue }
@@ -57,6 +59,11 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 			series[k][0] += inv.Total
 			series[k][1] += inv.Total - inv.Cost
 			series[k][2]++
+			if inv.CustID != "" {
+				if cust[inv.CustID] == nil { cust[inv.CustID] = &[2]float64{} }
+				cust[inv.CustID][0] += inv.Total
+				cust[inv.CustID][1]++
+			}
 			st := inv.Staff
 			if staff[st] == nil { staff[st] = &[2]float64{} }
 			staff[st][0] += inv.Total
@@ -110,6 +117,17 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 		r.Top = tl
 		for g, v := range grp { r.Groups = append(r.Groups, map[string]any{"name": g, "rev": r0(v[0]), "profit": r0(v[1])}) }
 		sort.Slice(r.Groups, func(i, j int) bool { return r.Groups[i]["rev"].(float64) > r.Groups[j]["rev"].(float64) })
+		if len(cust) > 0 {
+			spend := custSpendAll(s)
+			tiers := tiersOf(s)
+			for id, v := range cust {
+				name, tier := inv0Name(s, id), ""
+				if n := tierIndex(tiers, spend[id]); n > 0 { tier = tiers[n-1].Name }
+				r.Custs = append(r.Custs, map[string]any{"id": id, "name": name, "rev": r0(v[0]), "n": v[1], "tier": tier, "spend": r0(spend[id])})
+			}
+			sort.Slice(r.Custs, func(i, j int) bool { return r.Custs[i]["rev"].(float64) > r.Custs[j]["rev"].(float64) })
+			if len(r.Custs) > 30 { r.Custs = r.Custs[:30] }
+		}
 		for n, v := range staff { r.Staff = append(r.Staff, map[string]any{"name": n, "rev": r0(v[0]), "n": v[1]}) }
 		// dòng tiền
 		r.Flow["salesCash"], r.Flow["salesBank"] = r.Cash, r.Bank
@@ -349,4 +367,9 @@ func daysBetween(a, b string) int {
 func vnDate(d string) string {
 	if len(d) != 10 { return d }
 	return d[8:10] + "/" + d[5:7] + "/" + d[0:4]
+}
+
+func inv0Name(s *State, id string) string {
+	if c := s.Customers[id]; c != nil { return c.Name }
+	return "Khách đã xóa"
 }

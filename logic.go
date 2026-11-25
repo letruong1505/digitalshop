@@ -101,7 +101,7 @@ func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 			if l.Qty <= 0 { continue }
 			if l.Ratio <= 0 { l.Ratio = 1 }
 			if l.Price < 0 { return uerr("Giá bán không hợp lệ: %s", p.Name) }
-			if u.Role != "owner" && !s.Settings.StaffEditPrice {
+			if !u.editPrice(&s.Settings) {
 				l.Price = unitPrice(p, l.Unit, l.Ratio)
 			}
 			base := r3(l.Qty * l.Ratio)
@@ -133,11 +133,15 @@ func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 			}
 		}
 		sub = r0(sub)
+		promo, hits := promoDisc(s, lines, req.CustID, time.Now())
+		if promo > sub { promo = sub }
 		disc := r0(req.Disc)
 		if disc < 0 { disc = 0 }
-		if disc > sub { disc = sub }
-		total := sub - disc
-		inv := &Invoice{ID: req.CID, Time: nowMs(), Lines: lines, Sub: sub, Disc: disc, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
+		if disc > sub-promo { disc = sub - promo }
+		total := sub - disc - promo
+		promoNote := ""
+		for i, h := range hits { if i > 0 { promoNote += ", " }; promoNote += h.Name }
+		inv := &Invoice{ID: req.CID, Time: nowMs(), Lines: lines, Sub: sub, Disc: disc + promo, Promo: promo, PromoNote: promoNote, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
 		if inv.ID == "" { inv.ID = newID() }
 		var cust *Party
 		if req.CustID != "" {

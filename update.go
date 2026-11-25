@@ -186,14 +186,14 @@ func (s *Server) updRoutes(m *http.ServeMux) {
 		s.db.Read(func(x *State) { st = x.Settings })
 		return updFeedURL(st), !st.UpdateOff
 	}
-	m.HandleFunc("POST /api/update/check", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/update/check", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		f, auto := feed()
 		info, err := updCheck(f)
 		if err != nil { failErr(w, err); return }
 		info.Auto = auto
 		writeJSON(w, info)
 	}))
-	m.HandleFunc("POST /api/update/apply", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/update/apply", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		f, _ := feed()
 		ver, err := updApply(f)
 		if err != nil { failErr(w, err); return }
@@ -202,7 +202,7 @@ func (s *Server) updRoutes(m *http.ServeMux) {
 		if fl, ok := w.(http.Flusher); ok { fl.Flush() }
 		go func() { time.Sleep(600 * time.Millisecond); updRestart(); s.Quit() }()
 	}))
-	m.HandleFunc("POST /api/update/config", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/update/config", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var in struct{ Auto bool `json:"auto"` }
 		if err := readJSON(r, &in); err != nil { failErr(w, err); return }
 		err := s.db.Do(func(st *State, t *Tx) error {

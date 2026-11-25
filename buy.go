@@ -125,7 +125,7 @@ func buyProxy(w http.ResponseWriter, method, path, rawQuery string, body []byte)
 
 func (s *Server) buyRoutes(m *http.ServeMux) {
 	// Thông tin để dựng hộp mua: bảng giá, mã máy, thông tin cửa hàng đã khai.
-	m.HandleFunc("GET /api/license/buy/info", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("GET /api/license/buy/info", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		lic.mu.Lock(); machine := lic.machine; lic.mu.Unlock()
 		var shop, phone string
 		if licInfoFn != nil { shop, phone, _ = licInfoFn() }
@@ -138,11 +138,11 @@ func (s *Server) buyRoutes(m *http.ServeMux) {
 		if resp.StatusCode != 200 || json.Unmarshal(b, &cfg) != nil { fail(w, 502, "Máy chủ bản quyền chưa trả lời đúng, thử lại sau ít phút."); return }
 		writeJSON(w, map[string]any{"config": cfg, "machine": machine, "shop": shop, "phone": phone, "product": buyProduct})
 	}))
-	m.HandleFunc("GET /api/license/buy/partner", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("GET /api/license/buy/partner", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		q := url.Values{"sp": {buyProduct}, "plan": {r.URL.Query().Get("plan")}, "code": {r.URL.Query().Get("code")}}
 		buyProxy(w, "GET", "/api/partner", q.Encode(), nil)
 	}))
-	m.HandleFunc("POST /api/license/buy/order", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/license/buy/order", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var in map[string]any
 		if json.NewDecoder(io.LimitReader(r.Body, 1<<14)).Decode(&in) != nil { fail(w, 400, "Dữ liệu không hợp lệ"); return }
 		lic.mu.Lock(); machine := lic.machine; lic.mu.Unlock()
@@ -150,7 +150,7 @@ func (s *Server) buyRoutes(m *http.ServeMux) {
 		b, _ := json.Marshal(in)
 		buyProxy(w, "POST", "/api/order", "", b)
 	}))
-	m.HandleFunc("GET /api/license/buy/order", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("GET /api/license/buy/order", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		q := url.Values{"code": {r.URL.Query().Get("code")}, "t": {r.URL.Query().Get("t")}}
 		buyProxy(w, "GET", "/api/order", q.Encode(), nil)
 	}))

@@ -254,26 +254,26 @@ func licBlockedMsg(s LicStatus) string {
 }
 
 func (s *Server) licRoutes(m *http.ServeMux) {
-	m.HandleFunc("GET /api/license", s.auth(false, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("GET /api/license", s.auth("", func(w http.ResponseWriter, r *http.Request, u *User) {
 		st := licStatus()
 		st.BuyURL = buyURL(st.Machine)
 		writeJSON(w, st)
 	}))
-	m.HandleFunc("POST /api/license/check", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/license/check", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		licRevokeCheck()
 		st := licStatus()
 		st.BuyURL = buyURL(st.Machine)
 		writeJSON(w, st)
 	}))
 	s.buyRoutes(m)
-	m.HandleFunc("POST /api/license/claim", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/license/claim", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		st, got, err := licClaim()
 		if err != nil { failErr(w, err); return }
 		if got { say("Nhận bản quyền đã mua: " + st.License.ID) }
 		st.BuyURL = buyURL(st.Machine)
 		writeJSON(w, map[string]any{"found": got || st.License != nil, "new": got, "status": st})
 	}))
-	m.HandleFunc("POST /api/license/activate", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/license/activate", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var req struct{ Key string `json:"key"` }
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		st, err := licActivate(req.Key)
