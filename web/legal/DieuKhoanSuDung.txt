@@ -5,7 +5,7 @@ Phiên bản điều khoản 1.0 — áp dụng cho Digital Shop 2.x
 
 Đây là thỏa thuận giữa Nhà cung cấp và Bên sử dụng về việc cài đặt và sử dụng phần mềm quản lý bán hàng Digital Shop.
 
-- Nhà cung cấp: [Tên công ty], mã số thuế 2902274556, trụ sở tại [Địa chỉ trụ sở], đại diện bởi [Họ tên, chức vụ].
+- Nhà cung cấp: Công ty TNHH Giải pháp & Ứng dụng công nghệ Nam Linh, mã số thuế 2902274556, địa chỉ: Xóm Liên Minh, xã Hùng Châu, tỉnh Nghệ An, số điện thoại: 0968.646.853.
 - Bên sử dụng: cá nhân, hộ kinh doanh hoặc doanh nghiệp mua bản quyền Phần mềm, có tên trên hóa đơn hoặc hợp đồng mua bán.
 
 1.1. Bên sử dụng chấp nhận Điều khoản này khi tích ô "Tôi đã đọc và đồng ý" trong bộ cài đặt hoặc ở màn hình thiết lập lần đầu, hoặc khi cài đặt và sử dụng Phần mềm.
@@ -169,9 +169,9 @@ Các ô trong ngoặc vuông do Nhà cung cấp điền trước khi phát hành
 - Thiết bị (nếu mua kèm): máy quét mã vạch, máy in nhiệt, máy tính. Phí: theo báo giá. Thuế GTGT theo thuế suất của thiết bị.
 
 Liên hệ hỗ trợ
-- Điện thoại / Zalo: [số điện thoại]
+- Điện thoại / Zalo: 0968.646.853
 - Email: [email]
 - Giờ hỗ trợ: [8:00–21:00 hằng ngày]
-- Địa chỉ: [địa chỉ]
+- Địa chỉ: Xóm Liên Minh, xã Hùng Châu, tỉnh Nghệ An
 
 Căn cứ pháp lý đã tham chiếu: Luật Thuế giá trị gia tăng số 48/2024/QH15; Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15; Luật Sở hữu trí tuệ; quy định hiện hành về hóa đơn, chứng từ.
