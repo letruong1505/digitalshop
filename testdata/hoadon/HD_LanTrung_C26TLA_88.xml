@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HDon><DLHDon Id="data"><TTChung><PBan>2.1.0</PBan><THDon>HÓA ĐƠN BÁN HÀNG</THDon><KHMSHDon>2</KHMSHDon><KHHDon>C26TLA</KHHDon><SHDon>88</SHDon><NLap>2026-10-22</NLap><DVTTe>VND</DVTTe><TGia>1</TGia><HTTToan>TM/CK</HTTToan><MSTTCGP>0101243150</MSTTCGP></TTChung>
+<NDHDon><NBan><Ten>HỘ KINH DOANH NGUYỄN THỊ LAN</Ten><MST>8123456789</MST><DChi>Diễn Yên, Diễn Châu</DChi></NBan><NMua><Ten>Tạp hóa Thử</Ten><MST></MST><DChi>Diễn Châu, Nghệ An</DChi></NMua>
+<DSHHDVu><HHDVu><TChat>1</TChat><STT>1</STT><MHHDVu>HP001</MHHDVu><THHDVu>Trứng gà ta</THHDVu><DVTinh>Vỉ</DVTinh><SLuong>10</SLuong><DGia>30000</DGia><ThTien>300000</ThTien></HHDVu></DSHHDVu><TToan><TgTTTBSo>300000</TgTTTBSo><TgTTTBChu>...</TgTTTBChu></TToan></NDHDon></DLHDon>
+<MCCQT Id="Id-MCCQT">00A1B2C3D4E5F6071829304AB5</MCCQT><DSCKS><NBan><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo/></Signature></NBan></DSCKS></HDon>

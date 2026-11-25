@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HDon><DLHDon Id="data"><TTChung><PBan>2.1.0</PBan><THDon>HÓA ĐƠN GIÁ TRỊ GIA TĂNG (TIỀN ĐIỆN)</THDon><KHMSHDon>1</KHMSHDon><KHHDon>C26TDL</KHHDon><SHDon>5521</SHDon><NLap>2026-10-15</NLap><DVTTe>VND</DVTTe><TGia>1</TGia><HTTToan>TM/CK</HTTToan><MSTTCGP>0101243150</MSTTCGP></TTChung>
+<NDHDon><NBan><Ten>CÔNG TY ĐIỆN LỰC NGHỆ AN</Ten><MST>2900325596</MST><DChi>Vinh, Nghệ An</DChi></NBan><NMua><Ten>Tạp hóa Thử</Ten><MST></MST><DChi>Diễn Châu, Nghệ An</DChi></NMua>
+<DSHHDVu><HHDVu><TChat>1</TChat><STT>1</STT><MHHDVu>HP001</MHHDVu><THHDVu>Tiền điện tháng 10/2026</THHDVu><DVTinh>kWh</DVTinh><SLuong>350</SLuong><DGia>2800</DGia><ThTien>980000</ThTien><TSuat>8%</TSuat></HHDVu></DSHHDVu><TToan><THTTLTSuat><LTSuat><TSuat>8%</TSuat><ThTien>0</ThTien><TThue>0</TThue></LTSuat></THTTLTSuat><TgTCThue>980000</TgTCThue><TgTThue>78400</TgTThue><TgTTTBSo>1058400</TgTTTBSo><TgTTTBChu>...</TgTTTBChu></TToan></NDHDon></DLHDon>
+<MCCQT Id="Id-MCCQT">00A1B2C3D4E5F6071829304AB5</MCCQT><DSCKS><NBan><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo/></Signature></NBan></DSCKS></HDon>

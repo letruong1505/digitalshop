@@ -1,0 +1,102 @@
+DIGITAL SHOP 2.3 — PHẦN MỀM BÁN HÀNG & QUẢN LÝ KHO CHO CỬA HÀNG TẠP HÓA
+Phát triển bởi Nam Linh Group
+=====================================================================
+
+1. YÊU CẦU
+   - Windows 10 hoặc 11 (32-bit hoặc 64-bit). Không chạy trên Windows 7.
+   - Bán hàng không cần internet. Internet chỉ cần cho tự xác nhận chuyển khoản
+     và tách đơn Zalo bằng AI (đều không bắt buộc).
+
+2. CÀI ĐẶT
+   - Chạy file TapHoaX-CaiDat-3.1.0.exe, bấm "Yes" khi Windows hỏi quyền quản trị.
+   - Nếu Windows báo "Windows protected your PC": bấm "More info" → "Run anyway".
+   - Đọc Điều khoản sử dụng, tích "Tôi đã đọc và đồng ý" rồi bấm Tiếp.
+   - Chọn: biểu tượng trên màn hình, tự mở khi bật máy (nên chọn cho máy tính tiền).
+   - Phần mềm cài vào Program Files\Nam Linh Group\TapHoaX.
+   - Dữ liệu bán hàng lưu riêng tại C:\ProgramData\Nam Linh Group\TapHoaX\DuLieu,
+     nên gỡ ra cài lại hay cập nhật bản mới đều không mất dữ liệu.
+   - Cập nhật bản mới: chạy bộ cài mới đè lên, không cần gỡ bản cũ.
+   - Gỡ cài đặt: Settings → Apps → Digital Shop → Uninstall (hoặc menu Start →
+     Nam Linh Group → Gỡ cài đặt). Bộ gỡ sẽ hỏi có giữ dữ liệu không.
+   - Đang dùng bản không cài đặt (chạy thẳng TapHoaX.exe)? Vào Cài đặt → Sao lưu →
+     "Tải file sao lưu về", cài bản mới, rồi "Khôi phục từ file".
+
+3. LẦN ĐẦU SỬ DỤNG
+   - Đặt tên cửa hàng, tên chủ và mã PIN (4–8 số), tích đồng ý điều khoản.
+   - Bấm "Nhập từ Excel" (menu bên trái, hoặc nút ở đầu trang Hàng hóa / Khách hàng /
+     Nhà cung cấp) để lấy danh mục, khách, công nợ, lịch sử bán từ KiotViet, MISA.
+     Nhận file .xlsx, .xls (cả Excel 97–2003 mà MISA hay xuất), .csv. Kéo thả file vào là xong.
+   - Vào "Cài đặt" điền ngân hàng + số tài khoản để hiện mã VietQR.
+
+3b. HÓA ĐƠN ĐẦU VÀO → PHIẾU NHẬP (bản thử nghiệm)
+   - Menu "Hóa đơn đầu vào" (hoặc Nhập hàng → "Từ hóa đơn điện tử").
+   - "Lấy từ cổng thuế": đăng nhập hoadondientu.gdt.gov.vn bằng tài khoản tra cứu của cửa hàng,
+     gõ mã captcha, chọn khoảng ngày. Phần mềm chỉ đọc hóa đơn mua vào, không lưu mật khẩu.
+   - Hoặc "Thêm file XML / ZIP": file hóa đơn điện tử nhà cung cấp gửi qua email/Zalo.
+   - Mỗi dòng hàng được gợi ý mặt hàng trong tiệm và quy đổi thùng/lốc. Kiểm tra, bấm "Đúng"
+     hoặc "Đổi", hàng chưa có thì "Tạo mặt hàng mới". Bấm "Nhập kho" để tạo phiếu nhập:
+     tồn kho, giá vốn (đã gồm thuế GTGT, trừ chiết khấu) và công nợ nhà cung cấp tự cập nhật.
+   - Lần sau cùng nhà cung cấp, phần mềm nhớ cách khớp nên hóa đơn tự "Sẵn sàng".
+   - Hóa đơn điện, nước, cước, dịch vụ tự xếp vào mục "Chi phí", không nhập kho.
+   - Hủy phiếu nhập thì hóa đơn trở về "Chờ duyệt".
+   - Hóa đơn khởi tạo từ máy tính tiền (mua ở siêu thị...) chưa lấy được từ cổng vì cổng bắt
+     gõ thêm captcha riêng; tải file XML của hóa đơn đó rồi "Thêm file XML / ZIP".
+   - Cổng thuế không có kết nối chính thức cho phần mềm; nếu cổng đổi cách hoạt động, tính năng
+     lấy từ cổng có thể tạm lỗi. Gửi file TapHoaX.log cho Nam Linh Group để được sửa.
+
+4. CHUYỂN KHOẢN: MÃ QR VÀ TỰ BÁO TIỀN VỀ
+   - Chọn "Chuyển khoản" khi thanh toán: hiện mã VietQR có sẵn số tiền.
+   - Tự báo khi tiền về (không bắt buộc): Cài đặt → "Tự xác nhận khi tiền chuyển khoản về",
+     chọn SePay hoặc payOS, dán khóa API, bấm "Lưu và kiểm tra kết nối".
+     · SePay: đăng ký my.sepay.vn, liên kết tài khoản ngân hàng, tạo API token.
+     · payOS: đăng ký payos.vn, tạo kênh thanh toán, lấy Client ID / API Key / Checksum Key.
+   - Khi khách chuyển đúng số tiền, phần mềm kêu "ting", hiện "Đã nhận tiền" và có thể
+     tự hoàn tất hóa đơn. Khách không được xóa nội dung chuyển khoản (mã TX...).
+
+5. MÀN HÌNH CHO KHÁCH
+   - Màn hình thứ hai cắm vào máy tính (HDMI/VGA/USB-C): Bán hàng → "Màn hình khách"
+     → "Mở cửa sổ màn hình khách", kéo cửa sổ sang màn hình đó, nhấn F11.
+   - Máy tính bảng / điện thoại cũ đặt ở quầy: quét mã QR trong "Màn hình khách".
+   - Khách thấy danh sách hàng, tổng tiền, mã QR chuyển khoản và "Thanh toán thành công".
+
+6. MÁY QUÉT MÃ VẠCH
+   - Cắm máy quét USB (chế độ bàn phím, có Enter sau mã) là dùng được ngay.
+   - Mã vạch riêng của thùng/lốc sẽ thêm đúng 1 thùng/lốc với giá thùng.
+   - Quét trong Phiếu nhập hàng / Phiếu kiểm kho để thêm dòng.
+   - Nếu mã có chữ bị đổi dấu: tắt gõ tiếng Việt (Unikey/EVKey) khi quét.
+
+7. MÁY IN HÓA ĐƠN
+   - Cài driver máy in nhiệt K80/K58. Cài đặt → In hóa đơn → chọn khổ giấy → "In thử".
+   - Lần đầu in: chọn đúng máy in, Lề = Không, bỏ "Đầu trang và chân trang".
+
+8. ĐIỆN THOẠI / MÁY KHÁC TRONG TIỆM
+   - Bắt cùng wifi, mở địa chỉ trong Cài đặt → "Dùng trên điện thoại" (hoặc quét mã QR).
+   - Bộ cài đã mở tường lửa cho mạng nội bộ. Máy tính chính phải luôn bật Digital Shop.
+
+9. PHÍM TẮT Ở MÀN HÌNH BÁN HÀNG
+   F2 tìm hàng · F4 hóa đơn chờ mới · F8 chọn khách · F9 thanh toán · Enter thêm hàng.
+   Tiền khách đưa gõ nhanh: 200k = 200.000, 1,5tr = 1.500.000.
+
+10. SAO LƯU
+   - Tự sao lưu mỗi ngày (giữ 40 bản) trong thư mục dữ liệu.
+   - Tự chép ra USB: Cài đặt → Sao lưu → chọn ổ USB (hoặc thư mục Google Drive/OneDrive).
+     Mỗi khi USB đang cắm, bản mới được chép vào thư mục TapHoaX_SaoLuu trên USB.
+   - Máy hỏng: cài Digital Shop trên máy khác → Cài đặt → "Khôi phục từ file (USB…)".
+
+11. TẮT PHẦN MỀM
+   - Digital Shop chạy nền, không có cửa sổ đen. Biểu tượng nằm ở khay cạnh đồng hồ
+     (bấm mũi tên ^ nếu bị ẩn). Đóng cửa sổ bán hàng thì phần mềm vẫn chạy cho điện thoại
+     và màn hình khách; bấm biểu tượng hoặc biểu tượng ngoài màn hình để mở lại.
+   - Tắt hẳn: chuột phải biểu tượng → "Tắt Digital Shop", hoặc Cài đặt → Tắt phần mềm.
+   - Nhật ký chạy (gửi cho hỗ trợ khi có lỗi): TapHoaX.log trong thư mục dữ liệu.
+
+12. ĐIỀU KHOẢN VÀ GIẤY PHÉP
+   - DieuKhoanSuDung.txt và GiayPhepBenThuBa.txt trong thư mục cài đặt,
+     hoặc Cài đặt → Giới thiệu & giấy phép.
+
+BẢN QUYỀN VÀ CẬP NHẬT (từ bản 3.1)
+   - Dùng thử đầy đủ 30 ngày. Cài đặt → Bản quyền: bấm "Mua bản quyền", chọn gói, chuyển khoản theo QR;
+     phần mềm tự nhận mã và kích hoạt sau khoảng 1 phút (hoặc bấm "Nhận mã đã mua", hoặc dán mã DS1...).
+   - Hết hạn dùng thử/bản quyền: vẫn xem và xuất dữ liệu, không bán thêm được cho đến khi kích hoạt.
+   - Cài đặt → Cập nhật phần mềm: bấm "Kiểm tra bản mới" rồi "Cập nhật ngay" (chỉ Windows, dữ liệu giữ nguyên).
+   - In hóa đơn nhiệt: Cài đặt → In hóa đơn → "Số dòng trống cuối phiếu" (mặc định 8) để máy cắt đúng chỗ.

@@ -1,0 +1,30 @@
+#pragma code_page(65001)
+1 ICON "taphoax.ico"
+1 VERSIONINFO
+FILEVERSION 3,1,0,0
+PRODUCTVERSION 3,1,0,0
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "042A04B0"
+    BEGIN
+      VALUE "CompanyName", "Nam Linh Group"
+      VALUE "FileDescription", "Digital Shop - Phần mềm bán hàng và quản lý kho"
+      VALUE "FileVersion", "3.1.0"
+      VALUE "InternalName", "TapHoaX"
+      VALUE "LegalCopyright", "© 2026 Nam Linh Group"
+      VALUE "OriginalFilename", "TapHoaX.exe"
+      VALUE "ProductName", "Digital Shop"
+      VALUE "ProductVersion", "3.1.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x042A, 1200
+  END
+END

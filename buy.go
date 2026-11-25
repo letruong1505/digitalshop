@@ -1,0 +1,50 @@
+package main
+
+// Mua bản quyền trực tuyến: mở trang mua của Nam Linh Group (thanh toán QR/SePay), sau đó
+// phần mềm tự lấy mã đã mua về và kích hoạt. Chữ ký mã vẫn được kiểm tra tại máy (parseLicense).
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+)
+
+const (
+	buyProduct     = "shop"
+	buyBaseDefault = "https://namlinh-banquyen.namlinh.workers.dev"
+)
+
+func buyBase() string {
+	if u := strings.TrimRight(os.Getenv("DS_BUY_URL"), "/"); u != "" { return u }
+	return buyBaseDefault
+}
+
+func buyURL(machine string) string {
+	return buyBase() + "/mua?sp=" + buyProduct + "&may=" + url.QueryEscape(machine)
+}
+
+// licClaim hỏi máy chủ bản quyền xem máy này đã mua chưa; nếu có thì kích hoạt luôn.
+func licClaim() (LicStatus, bool, error) {
+	lic.mu.Lock()
+	machine, cur := lic.machine, lic.st.Key
+	lic.mu.Unlock()
+	cl := &http.Client{Timeout: 15 * time.Second}
+	resp, err := cl.Get(buyBase() + "/api/claim?sp=" + buyProduct + "&m=" + url.QueryEscape(machine))
+	if err != nil { return LicStatus{}, false, uerr("Không kết nối được máy chủ bản quyền. Kiểm tra internet rồi thử lại.") }
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+	var r struct {
+		OK  bool   `json:"ok"`
+		Key string `json:"key"`
+	}
+	if resp.StatusCode != 200 || json.Unmarshal(b, &r) != nil { return LicStatus{}, false, uerr("Máy chủ bản quyền chưa trả lời đúng, thử lại sau ít phút.") }
+	if !r.OK || r.Key == "" { return licStatus(), false, nil }
+	if strings.Join(strings.Fields(r.Key), "") == cur { return licStatus(), false, nil }
+	st, err := licActivate(r.Key)
+	if err != nil { return LicStatus{}, false, err }
+	return st, true, nil
+}

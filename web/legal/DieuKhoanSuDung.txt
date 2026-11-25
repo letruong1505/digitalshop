@@ -1,0 +1,177 @@
+ĐIỀU KHOẢN SỬ DỤNG PHẦN MỀM DIGITAL SHOP
+Phiên bản điều khoản 1.0 — áp dụng cho Digital Shop 2.x
+
+1. CÁC BÊN VÀ PHẠM VI ÁP DỤNG
+
+Đây là thỏa thuận giữa Nhà cung cấp và Bên sử dụng về việc cài đặt và sử dụng phần mềm quản lý bán hàng Digital Shop.
+
+- Nhà cung cấp: [Tên công ty], mã số thuế 2902274556, trụ sở tại [Địa chỉ trụ sở], đại diện bởi [Họ tên, chức vụ].
+- Bên sử dụng: cá nhân, hộ kinh doanh hoặc doanh nghiệp mua bản quyền Phần mềm, có tên trên hóa đơn hoặc hợp đồng mua bán.
+
+1.1. Bên sử dụng chấp nhận Điều khoản này khi tích ô "Tôi đã đọc và đồng ý" trong bộ cài đặt hoặc ở màn hình thiết lập lần đầu, hoặc khi cài đặt và sử dụng Phần mềm.
+
+1.2. Nếu không đồng ý, Bên sử dụng không cài đặt Phần mềm. Trong 07 ngày kể từ ngày mua, Bên sử dụng được hoàn lại phí bản quyền đã trả nếu báo cho Nhà cung cấp và gỡ Phần mềm khỏi máy.
+
+1.3. Nếu hai bên ký hợp đồng riêng, nội dung của hợp đồng đó được ưu tiên áp dụng khi khác với Điều khoản này.
+
+2. ĐỊNH NGHĨA
+
+- Phần mềm: chương trình Digital Shop (file TapHoaX.exe), các bản cập nhật và tài liệu hướng dẫn đi kèm.
+- Bản quyền: quyền sử dụng Phần mềm mà Nhà cung cấp cấp cho Bên sử dụng theo Điều khoản này.
+- Cửa hàng: một địa điểm kinh doanh của Bên sử dụng.
+- Máy chủ: máy tính tại Cửa hàng chạy file TapHoaX.exe và lưu Dữ liệu cửa hàng.
+- Thiết bị truy cập: điện thoại, máy tính bảng hoặc máy tính khác mở Phần mềm qua mạng nội bộ của Cửa hàng.
+- Dữ liệu cửa hàng: hàng hóa, hóa đơn, phiếu nhập, sổ nợ, thông tin khách hàng, nhà cung cấp, nhân viên và các dữ liệu khác Bên sử dụng nhập vào Phần mềm.
+- Phiên bản: bản Phần mềm có số hiệu riêng (ví dụ 2.0). Bản sửa lỗi đổi số sau dấu chấm thứ hai (2.0.1), bản lớn đổi số đầu (3.0).
+- Dịch vụ hỗ trợ: hướng dẫn sử dụng, xử lý lỗi và cài đặt mà Nhà cung cấp thực hiện theo mục 6.
+
+3. CẤP QUYỀN SỬ DỤNG
+
+Mỗi Bản quyền dùng cho 01 Cửa hàng, cài trên 01 Máy chủ, không giới hạn số Thiết bị truy cập và số tài khoản nhân viên trong Cửa hàng đó.
+
+3.1. Nhà cung cấp cấp cho Bên sử dụng quyền sử dụng Phần mềm không độc quyền, không chuyển nhượng, để quản lý hoạt động bán hàng của chính Bên sử dụng.
+
+3.2. Thời hạn Bản quyền theo gói ghi trong Phụ lục: [sử dụng lâu dài với Phiên bản đã mua] hoặc [theo năm].
+
+3.3. Bên sử dụng được sao chép Phần mềm để sao lưu, và được chuyển sang Máy chủ mới khi thay máy, với điều kiện ngừng dùng trên máy cũ.
+
+3.4. Mở thêm Cửa hàng ở địa điểm khác cần mua thêm Bản quyền cho Cửa hàng đó.
+
+3.5. Chuyển nhượng Cửa hàng kèm Phần mềm cho người khác phải báo trước cho Nhà cung cấp; người nhận phải chấp nhận Điều khoản này.
+
+4. NHỮNG VIỆC KHÔNG ĐƯỢC LÀM
+
+Bên sử dụng không được:
+
+1. Bán lại, cho thuê, cho mượn Phần mềm hoặc dùng một Bản quyền cho nhiều Cửa hàng.
+2. Dịch ngược, tháo rời, sửa đổi Phần mềm, trừ phạm vi pháp luật cho phép.
+3. Gỡ bỏ hoặc sửa các thông báo bản quyền, nhãn hiệu và giấy phép trong Phần mềm.
+4. Tìm cách vượt qua cơ chế quản lý Bản quyền hoặc phân quyền tài khoản của Phần mềm.
+5. Dùng Phần mềm để quản lý việc mua bán hàng hóa bị cấm, hoặc để che giấu doanh thu, trốn thuế hay vi phạm pháp luật khác.
+
+Vi phạm mục này là căn cứ để Nhà cung cấp chấm dứt Bản quyền theo mục 11.2.
+
+5. PHÍ, THANH TOÁN VÀ THUẾ
+
+Phí Bản quyền theo Phụ lục hoặc báo giá, thanh toán trước khi bàn giao; phần mềm không chịu thuế GTGT.
+
+5.1. Bên sử dụng thanh toán bằng chuyển khoản vào tài khoản của Nhà cung cấp hoặc tiền mặt có phiếu thu. Nhà cung cấp xuất hóa đơn điện tử sau khi nhận đủ tiền.
+
+5.2. Sản phẩm phần mềm và dịch vụ phần mềm thuộc đối tượng không chịu thuế giá trị gia tăng theo khoản 21 Điều 5 Luật Thuế giá trị gia tăng số 48/2024/QH15. Hóa đơn ghi "không chịu thuế" cho phần này.
+
+5.3. Thiết bị bán kèm (máy tính, máy quét mã vạch, máy in hóa đơn) và dịch vụ không phải dịch vụ phần mềm, nếu bán riêng, chịu thuế GTGT theo quy định và được ghi thành dòng riêng trên hóa đơn.
+
+5.4. Phí đã trả không được hoàn lại, trừ trường hợp nêu tại mục 1.2 và mục 6.4.
+
+5.5. Phí gia hạn hỗ trợ sau thời gian miễn phí và phí cài đặt tại Cửa hàng (nếu có) theo Phụ lục.
+
+6. CẬP NHẬT, HỖ TRỢ VÀ BẢO HÀNH
+
+Bên sử dụng được hỗ trợ miễn phí [12] tháng và bảo hành [30] ngày kể từ ngày bàn giao.
+
+6.1. Dịch vụ hỗ trợ qua điện thoại hoặc Zalo theo số và giờ ghi trong Phụ lục. Yêu cầu ngoài giờ được xử lý trong ngày làm việc kế tiếp.
+
+6.2. Nhà cung cấp chỉ điều khiển máy từ xa (UltraViewer, TeamViewer hoặc tương tự) khi Bên sử dụng đồng ý và tự cấp mã truy cập cho từng lần.
+
+6.3. Bản sửa lỗi trong cùng Phiên bản được cung cấp miễn phí. Phiên bản lớn mới có thể thu phí nâng cấp; Bên sử dụng không bắt buộc phải nâng cấp.
+
+6.4. Trong thời gian bảo hành, Nhà cung cấp cam kết các chức năng chính hoạt động như mô tả trong tài liệu Hướng dẫn. Lỗi lặp lại được sẽ được sửa trong [05] ngày làm việc. Nếu không sửa được, Nhà cung cấp hoàn lại phí Bản quyền và Bản quyền chấm dứt.
+
+6.5. Không thuộc phạm vi bảo hành:
+- Máy chủ dùng hệ điều hành không được hỗ trợ (Windows 7 trở về trước), hoặc phần cứng, ổ cứng, mạng bị hỏng.
+- Máy nhiễm virus, bị phần mềm khác can thiệp, hoặc thư mục dữ liệu bị sửa bằng tay.
+- Sử dụng trái với tài liệu Hướng dẫn hoặc Điều khoản này.
+
+6.6. Ngoài cam kết tại mục 6.4, Phần mềm được cung cấp theo hiện trạng. Nhà cung cấp không cam kết Phần mềm không bao giờ lỗi hoặc không bao giờ gián đoạn.
+
+7. DỮ LIỆU CỬA HÀNG VÀ DỮ LIỆU CÁ NHÂN
+
+Dữ liệu cửa hàng nằm trên Máy chủ của Bên sử dụng và thuộc về Bên sử dụng; Phần mềm không tự gửi dữ liệu này về Nhà cung cấp.
+
+7.1. Bên sử dụng là bên kiểm soát dữ liệu cá nhân của khách hàng và nhân viên mình theo Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15. Bên sử dụng chỉ nhập thông tin cần cho việc bán hàng và ghi nợ, và tự giữ bí mật mã PIN, máy tính, mạng wifi của Cửa hàng.
+
+7.2. Khi hỗ trợ, Nhà cung cấp chỉ xem Dữ liệu cửa hàng khi Bên sử dụng đồng ý và trong phạm vi cần để xử lý việc được yêu cầu. Nhà cung cấp chỉ sao chép dữ liệu ra khỏi Máy chủ khi Bên sử dụng đồng ý bằng văn bản hoặc tin nhắn, và xóa bản sao sau khi xử lý xong. Nhà cung cấp không mua bán hay chia sẻ Dữ liệu cửa hàng cho bên thứ ba.
+
+7.3. Phần mềm tự sao lưu mỗi ngày vào thư mục SaoLuu trên cùng Máy chủ. Bên sử dụng tự chép bản sao lưu ra USB, ổ cứng khác hoặc dịch vụ lưu trữ đám mây ít nhất mỗi tuần. Nhà cung cấp không chịu trách nhiệm khi Máy chủ hỏng hoặc bị mất mà không có bản sao lưu nằm ngoài Máy chủ.
+
+7.4. Phần mềm được thiết kế để dùng trong mạng nội bộ Cửa hàng. Bên sử dụng không mở Phần mềm ra internet công cộng (ví dụ mở cổng trên modem) nếu không có hướng dẫn bảo mật của Nhà cung cấp.
+
+7.5. Tính năng tách đơn bằng AI là tùy chọn và chỉ chạy khi Bên sử dụng tự nhập khóa API của Anthropic. Khi dùng, nội dung tin nhắn dán vào, danh mục hàng hóa và tên khách quen được gửi tới máy chủ của Anthropic ở nước ngoài để xử lý. Bên sử dụng tự quyết định việc dùng, tự trả phí API, tuân thủ điều khoản của Anthropic và quy định về chuyển dữ liệu cá nhân ra nước ngoài. Xóa khóa API trong Cài đặt để tắt tính năng này.
+
+7.6. Bên sử dụng xuất được hàng hóa, khách hàng, nhà cung cấp và hóa đơn ra file Excel bất cứ lúc nào, kể cả sau khi Bản quyền chấm dứt.
+
+8. HÓA ĐƠN ĐIỆN TỬ, MÃ QR VÀ PHẦN MỀM KHÁC
+
+Phiếu in từ Phần mềm là phiếu thanh toán nội bộ, không phải hóa đơn điện tử theo quy định về hóa đơn, chứng từ.
+
+8.1. Phiên bản hiện tại chưa khởi tạo hóa đơn điện tử và chưa kết nối chuyển dữ liệu hóa đơn với cơ quan thuế.
+
+8.2. Bên sử dụng tự xác định và thực hiện nghĩa vụ hóa đơn, kê khai và nộp thuế của mình, kể cả trường hợp phải dùng hóa đơn điện tử khởi tạo từ máy tính tiền, bằng giải pháp của tổ chức cung cấp dịch vụ hóa đơn điện tử được cơ quan thuế chấp nhận. Số liệu báo cáo của Phần mềm dùng để tham khảo khi kê khai.
+
+8.3. Mã QR chuyển khoản được tạo theo chuẩn VietQR từ số tài khoản do Bên sử dụng nhập. Phần mềm không nhận, giữ hay chuyển tiền và không xác nhận tiền đã về tài khoản. Bên sử dụng tự kiểm tra tài khoản trước khi giao hàng và tự chịu trách nhiệm khi nhập sai thông tin tài khoản.
+
+8.4. Chức năng Nhập dữ liệu đọc file do Bên sử dụng tự xuất từ KiotViet, MISA hoặc phần mềm khác. Nhà cung cấp không liên kết với các hãng này; tên của họ chỉ dùng để mô tả tính tương thích và thuộc về chủ sở hữu tương ứng. Định dạng file của các hãng có thể thay đổi, nên Bên sử dụng kiểm tra lại số liệu sau khi nhập.
+
+9. SỞ HỮU TRÍ TUỆ VÀ MÃ NGUỒN MỞ
+
+Phần mềm thuộc quyền sở hữu của Nhà cung cấp; Bên sử dụng chỉ có quyền sử dụng theo mục 3.
+
+9.1. Mã chương trình, giao diện, tên gọi và tài liệu của Phần mềm được bảo hộ theo Luật Sở hữu trí tuệ. Việc mua Bản quyền không chuyển giao quyền sở hữu các đối tượng này.
+
+9.2. Phần mềm có dùng các thành phần của bên thứ ba theo giấy phép riêng:
+- Thư viện qrcode-generator (Kazuhiko Arase) — tạo mã QR chuyển khoản — Giấy phép MIT
+- Phông chữ Be Vietnam Pro — chữ giao diện — SIL Open Font License 1.1
+- Phông chữ Patrick Hand — chữ viết tay trong sổ nợ — SIL Open Font License 1.1
+- Thư viện chuẩn ngôn ngữ Go — phần lõi chương trình — Giấy phép BSD 3 điều khoản
+Toàn văn các giấy phép nằm trong file GiayPhepBenThuBa.txt và mục Cài đặt → Giới thiệu & giấy phép. Điều khoản này không hạn chế quyền mà các giấy phép đó trao cho người dùng.
+
+9.3. QR Code là nhãn hiệu đã đăng ký của DENSO WAVE INCORPORATED. VietQR là thương hiệu của NAPAS. KiotViet, MISA và các tên khác thuộc chủ sở hữu tương ứng.
+
+9.4. Góp ý của Bên sử dụng về Phần mềm được Nhà cung cấp dùng để cải tiến sản phẩm mà không phải trả phí.
+
+10. GIỚI HẠN TRÁCH NHIỆM VÀ BẤT KHẢ KHÁNG
+
+Tổng trách nhiệm bồi thường của Nhà cung cấp không vượt quá tổng phí Bên sử dụng đã trả trong 12 tháng trước sự việc gây thiệt hại.
+
+10.1. Trong phạm vi pháp luật cho phép, Nhà cung cấp không chịu trách nhiệm về thiệt hại gián tiếp: mất lợi nhuận, mất doanh thu, gián đoạn kinh doanh, hoặc tiền phạt do Bên sử dụng không thực hiện đúng nghĩa vụ thuế và hóa đơn.
+
+10.2. Giới hạn tại mục này không áp dụng khi thiệt hại do lỗi cố ý của Nhà cung cấp, hoặc khi pháp luật không cho phép giới hạn.
+
+10.3. Phần mềm là công cụ hỗ trợ quản lý. Bên sử dụng tự kiểm tra giá bán, tồn kho, hạn sử dụng và công nợ trước khi dùng số liệu để ra quyết định. Cảnh báo cận date chỉ đúng khi hạn sử dụng được nhập đúng.
+
+10.4. Không bên nào chịu trách nhiệm khi chậm hoặc không thực hiện được nghĩa vụ do sự kiện bất khả kháng: thiên tai, hỏa hoạn, dịch bệnh, mất điện hoặc sự cố mạng diện rộng, quyết định của cơ quan nhà nước. Bên gặp sự kiện phải báo cho bên kia trong [03] ngày và khắc phục ngay khi có thể.
+
+11. CHẤM DỨT, LUẬT ÁP DỤNG VÀ HIỆU LỰC
+
+Điều khoản này theo pháp luật Việt Nam và có hiệu lực từ khi Bên sử dụng chấp nhận theo mục 1.1.
+
+11.1. Bên sử dụng có thể ngừng dùng Phần mềm bất cứ lúc nào.
+
+11.2. Nhà cung cấp được chấm dứt Bản quyền khi Bên sử dụng vi phạm mục 4 và không khắc phục trong 15 ngày kể từ khi nhận thông báo bằng văn bản hoặc tin nhắn.
+
+11.3. Khi Bản quyền chấm dứt, Bên sử dụng ngừng dùng và gỡ Phần mềm sau khi xuất Dữ liệu cửa hàng ra file theo mục 7.6. Các mục 7, 9, 10 và 11 vẫn còn hiệu lực sau khi chấm dứt.
+
+11.4. Tranh chấp trước hết được hai bên thương lượng trong 30 ngày. Thương lượng không thành thì một bên có quyền đưa ra Tòa án nhân dân có thẩm quyền nơi Nhà cung cấp đặt trụ sở, trừ khi pháp luật về bảo vệ quyền lợi người tiêu dùng quy định khác.
+
+11.5. Nhà cung cấp có thể sửa Điều khoản này khi phát hành Phiên bản mới và thông báo trước ít nhất 15 ngày qua Zalo, email hoặc ngay trong Phần mềm. Bản Phần mềm đang dùng tiếp tục theo Điều khoản tại thời điểm mua cho đến khi Bên sử dụng cài Phiên bản mới.
+
+11.6. Một điều khoản bị vô hiệu không làm ảnh hưởng tới các điều khoản còn lại.
+
+11.7. Phiên bản Điều khoản: 1.0, áp dụng cho Digital Shop 2.x. Bên sử dụng cũng chấp nhận Điều khoản khi tích ô đồng ý trong bộ cài đặt.
+
+PHỤ LỤC: GÓI BẢN QUYỀN VÀ LIÊN HỆ
+
+Các ô trong ngoặc vuông do Nhà cung cấp điền trước khi phát hành.
+
+- Bản quyền Digital Shop: 01 Cửa hàng, 01 Máy chủ, không giới hạn điện thoại và nhân viên, hỗ trợ [12] tháng. Phí: [điền] VNĐ. Không chịu thuế GTGT.
+- Cài đặt tại Cửa hàng (tùy chọn): cài Phần mềm, nhập dữ liệu từ phần mềm cũ, kết nối máy in và máy quét, hướng dẫn tại chỗ. Phí: [điền] VNĐ. Không chịu thuế GTGT (dịch vụ phần mềm).
+- Gia hạn hỗ trợ: hỗ trợ và bản sửa lỗi thêm 12 tháng. Phí: [điền] VNĐ/năm. Không chịu thuế GTGT.
+- Thiết bị (nếu mua kèm): máy quét mã vạch, máy in nhiệt, máy tính. Phí: theo báo giá. Thuế GTGT theo thuế suất của thiết bị.
+
+Liên hệ hỗ trợ
+- Điện thoại / Zalo: [số điện thoại]
+- Email: [email]
+- Giờ hỗ trợ: [8:00–21:00 hằng ngày]
+- Địa chỉ: [địa chỉ]
+
+Căn cứ pháp lý đã tham chiếu: Luật Thuế giá trị gia tăng số 48/2024/QH15; Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15; Luật Sở hữu trí tuệ; quy định hiện hành về hóa đơn, chứng từ.
