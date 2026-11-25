@@ -27,7 +27,7 @@ var updPubKey = "0eE4Fe+t2pDrJ52nY5A97y78AUMEGJtijFi8pSEBC3Y="
 
 const (
 	updProduct    = "shop"
-	updURLDefault = "https://namlinh-capnhat.namlinh.workers.dev/latest-shop.json"
+	updURLDefault = "https://pub-ccfe83f2b7834443814836e1985185b3.r2.dev/digitalshop/latest-shop.json"
 	updMaxSize    = 200 << 20
 )
 
