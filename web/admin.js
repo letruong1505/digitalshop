@@ -585,15 +585,28 @@ function buyPay(o) {
       <tr><td class="ps">Số tiền</td><td><b class="num">${money(o.amount)}</b></td></tr>
       <tr><td class="ps">Nội dung</td><td><b class="num">${esc(o.code)}</b></td></tr></tbody></table>
     <div id="bwait" class="ps" style="margin-top:8px">Đang chờ thanh toán…</div>
-    <div class="row" style="margin-top:8px"><span class="grow"></span><button class="btn" data-act="close">Đóng, thanh toán sau</button></div>`;
+    <div class="row" style="margin-top:8px"><button class="btn pri" id="bcheck">Tôi đã thanh toán, kiểm tra ngay</button><span class="grow"></span><button class="btn" data-act="close">Đóng, thanh toán sau</button></div>`;
   const img = $("#bqr"); img.onerror = () => { img.style.display = "none"; $("#bqrErr").hidden = false; }; img.src = o.qr;
   buyStop(); const t0 = Date.now();
-  buyPoll = setInterval(async () => {
-    if (Date.now() - t0 > 30 * 60 * 1000) { buyStop(); const w = $("#bwait"); if (w) w.textContent = "Hết thời gian chờ. Nếu đã chuyển khoản, đóng hộp này rồi bấm Nhận mã đã mua."; return; }
+  const id0 = S.lic && S.lic.license ? S.lic.license.id : "";
+  let busy = false;
+  // Kiểm tra: hỏi đơn hàng; đồng thời hỏi theo mã máy (phòng khi đơn đã trả tiền nhưng tra theo mã đơn không ra).
+  const check = async (manual) => {
+    if (busy) return; busy = true;
+    const w = $("#bwait");
     try {
-      const r = await api("GET", "/api/license/buy/order?code=" + encodeURIComponent(o.code) + "&t=" + encodeURIComponent(o.token));
-      if (r.status === "paid") buyDone(r);
-    } catch (e) {}
+      const r = await api("GET", "/api/license/buy/order?code=" + encodeURIComponent(o.code) + "&t=" + encodeURIComponent(o.token) + "&_=" + Date.now());
+      if (r.status === "paid") return buyDone(r);
+      const c = await api("POST", "/api/license/claim");
+      if (c.found && c.status && c.status.license && c.status.license.id !== id0) { loadLic(c.status); return buyDone({ product: "Digital Shop", plan: "", exp: c.status.license.exp || "", claimed: true }); }
+      if (manual && w) w.textContent = "Chưa thấy khoản thanh toán. Nếu vừa chuyển khoản, đợi vài giây rồi bấm lại.";
+    } catch (e) { if (w) w.textContent = "Chưa kiểm tra được: " + e.message; }
+    finally { busy = false; }
+  };
+  const btn = $("#bcheck"); if (btn) btn.onclick = () => check(true);
+  buyPoll = setInterval(() => {
+    if (Date.now() - t0 > 30 * 60 * 1000) { buyStop(); const w = $("#bwait"); if (w) w.textContent = "Hết thời gian chờ. Nếu đã chuyển khoản, bấm Kiểm tra thanh toán."; return; }
+    check(false);
   }, 4000);
 }
 async function buyDone(o) {
@@ -601,6 +614,7 @@ async function buyDone(o) {
   const b = $("#buyBody"); if (!b) return;
   let ok = false;
   try { const r = await api("POST", "/api/license/claim"); ok = r.found; loadLic(r.status); } catch (e) {}
+  if (o.claimed) ok = true;
   b.innerHTML = `<div style="text-align:center;padding:14px 0"><div style="font-size:42px">✓</div><h3 style="margin:6px 0">${ok ? "Đã kích hoạt bản quyền" : "Thanh toán thành công"}</h3>
     <p class="ps" style="margin:0">${esc(o.product || "")} · ${esc(o.plan || "")}${o.exp ? " · dùng đến hết ngày " + esc(o.exp.split("-").reverse().join("/")) : " · vĩnh viễn"}</p>
     ${ok ? "" : '<p class="ps">Chưa kích hoạt tự động được. Đóng hộp này rồi bấm "Nhận mã đã mua".</p>'}</div>
