@@ -119,3 +119,8 @@ KHÁCH HÀNG DO PHẦN MỀM TỰ BÁO (từ bản 3.1.3)
 - Hộp "Thu hồi" tự điền tên, điện thoại, địa chỉ, mã máy, phiên bản, lần online cuối và ghi chú để đối chiếu trước khi khóa. Bảng "Bản quyền đã thu hồi" có thêm địa chỉ và ghi chú.
 - Mã gắn với máy báo đầu tiên: máy khác gửi cùng số bản quyền sẽ không sửa được thông tin (chống người ngoài đoán số rồi sửa tên khách).
 - Máy chưa cập nhật lên 3.1.3 chưa báo tên: khi đó dùng cách dán mã DS1 để hiện tên.
+
+MÃ ĐỐI TÁC GIẢM 100% (ĐỂ THỬ MUA KHÔNG CẦN TRẢ TIỀN)
+- Trang /admin > Đối tác: tạo mã (ví dụ TEST100), % giảm = 100.
+- Khách nhập mã ở trang /mua: đơn 0 đồng, mã kích hoạt được cấp ngay, không cần chuyển khoản.
+- Thử xong HÃY TẮT mã (bỏ chọn hoạt động), vì ai biết mã đều nhận bản quyền miễn phí.

@@ -145,8 +145,8 @@ async function ensurePartners(env) {
   partnersReady = true;
 }
 const normPartner = (c) => String(c || "").toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 24);
-// Giá sau giảm làm tròn xuống nghìn đồng, tối thiểu 1.000 đ.
-const discounted = (list, pct) => Math.max(1000, Math.floor((list * (100 - pct)) / 100 / 1000) * 1000);
+// Giá sau giảm làm tròn xuống nghìn đồng, tối thiểu 1.000 đ; mã giảm 100% thì miễn phí (0 đ, cấp mã ngay, dùng để thử).
+const discounted = (list, pct) => pct >= 100 ? 0 : Math.max(1000, Math.floor((list * (100 - pct)) / 100 / 1000) * 1000);
 
 async function findPartner(env, code) {
   const c = normPartner(code);
@@ -208,6 +208,12 @@ async function createOrder(req, env) {
       await env.DB.prepare(
         "INSERT INTO orders (code,token,product,plan,amount,machine,shop,phone,email,mst,status,created_at,ip_hash,partner,discount,list_amount) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,'pending',?11,?12,?13,?14,?15)"
       ).bind(code, token, product, plan, amount, machine, shop, phone, email, mst, Date.now(), iph, partner, listAmount - amount, listAmount).run();
+      if (amount === 0) {
+        // Mã đối tác giảm 100%: không cần thanh toán, cấp mã kích hoạt ngay.
+        await settle(env, { code, product, plan, machine, shop, mst }, "partner-free", 0, "Miễn phí theo mã đối tác " + partner);
+        const o = await env.DB.prepare("SELECT license_key,license_id,exp FROM orders WHERE code=?1").bind(code).first();
+        return json({ code, token, amount: 0, status: "paid", key: o.license_key, id: o.license_id, exp: o.exp, product: PRODUCTS[product], plan: PLANS[plan].label, note: "Đơn miễn phí theo mã đối tác " + partner });
+      }
       return json({ code, token, amount, qr: qrUrl(env, amount, code), bank: bankInfo(env), product: PRODUCTS[product], plan: PLANS[plan].label });
     } catch (e) {
       if (!/UNIQUE|constraint/i.test(String(e))) throw e;
@@ -363,7 +369,7 @@ async function admin(req, url, env) {
     const code = normPartner(b.code);
     if (code.length < 3) return fail("Mã đối tác dài 3–24 ký tự, gồm chữ và số");
     const pct = Number(b.percent);
-    if (!Number.isInteger(pct) || pct < 1 || pct > 90) return fail("% giảm giá là số nguyên từ 1 đến 90");
+    if (!Number.isInteger(pct) || pct < 1 || pct > 100) return fail("% giảm giá là số nguyên từ 1 đến 100 (100 = miễn phí, chỉ dùng để thử)");
     const ex = await env.DB.prepare("SELECT code FROM partners WHERE code=?1").bind(code).first();
     if (ex) {
       await env.DB.prepare("UPDATE partners SET name=?1, percent=?2, active=?3, note=?4 WHERE code=?5")

@@ -212,6 +212,7 @@ textarea{width:100%;min-height:96px;padding:10px;border:1px solid var(--line);bo
         if (o.error) { $("err").textContent = o.error; return; }
         store("nlbq", { code: o.code, token: o.token });
         store("nlbq-form", { shop: body.shop, phone: body.phone, email: body.email, mst: body.mst });
+        if (o.status === "paid") { showDone(o); return; }
         fillPay(o);
       }).catch(function () { $("go").disabled = false; $("err").textContent = "Không kết nối được, thử lại"; });
   }
@@ -224,7 +225,7 @@ textarea{width:100%;min-height:96px;padding:10px;border:1px solid var(--line);bo
       .then(function (r) { return r.json(); })
       .then(function (o) {
         if (o.error) { m.textContent = o.error; m.style.color = "#c0392b"; return; }
-        m.textContent = "Giảm " + o.percent + "%: " + money(o.list) + " còn " + money(o.amount);
+        m.textContent = o.percent >= 100 ? "Giảm 100%: miễn phí, mã kích hoạt được cấp ngay" : "Giảm " + o.percent + "%: " + money(o.list) + " còn " + money(o.amount);
         m.style.color = "#1a7f4b";
       }).catch(function () { m.textContent = "Không kiểm tra được mã, thử lại"; });
   }
@@ -308,7 +309,7 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
     </div>
     <div class="card">
       <div class="row" style="margin-bottom:8px"><b>Mã đối tác &amp; % giảm giá</b></div>
-      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px"><input id="pc" placeholder="Mã (vd DAILY01)" style="width:140px"><input id="pn" placeholder="Tên đối tác" style="width:180px"><input id="pp" type="number" min="1" max="90" placeholder="% giảm" style="width:90px"><button class="l" id="padd" type="button">Lưu / cập nhật</button></div>
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px"><input id="pc" placeholder="Mã (vd DAILY01)" style="width:140px"><input id="pn" placeholder="Tên đối tác" style="width:180px"><input id="pp" type="number" min="1" max="90" placeholder="% giảm (100 = miễn phí)" style="width:150px"><button class="l" id="padd" type="button">Lưu / cập nhật</button></div>
       <table><thead><tr><th>Mã</th><th>Đối tác</th><th>Giảm</th><th>Đơn đã cấp</th><th>Doanh thu</th><th>Trạng thái</th><th></th></tr></thead><tbody id="ptn"></tbody></table>
     </div>
     <div class="card">
@@ -407,6 +408,7 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
     api("/admin/api/partner", { method: "POST", body: JSON.stringify(b) }).then(function () { loadPartners(); }).catch(function (e) { alert(e.message); });
   }
   $("padd").onclick = function () {
+    if (Number($("pp").value) >= 100 && !confirm("Mã giảm 100% = MIỄN PHÍ: ai nhập mã sẽ nhận bản quyền ngay không cần trả tiền. Chỉ dùng để thử và nhớ TẮT sau khi thử. Tiếp tục?")) return;
     savePartner({ code: $("pc").value, name: $("pn").value, percent: Number($("pp").value), active: true });
     $("pc").value = ""; $("pn").value = ""; $("pp").value = "";
   };
