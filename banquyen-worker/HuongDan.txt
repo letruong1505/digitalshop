@@ -98,5 +98,5 @@ test\e2e.sh chạy bằng bash khi bật npx wrangler dev --local --port 8799 v�
 THU HỒI BẢN QUYỀN (bản mới)
 - Trang /admin → dòng đơn đã cấp có nút "Thu hồi" (nhập lý do). Mã cấp tay: nút "Thu hồi theo số bản quyền…" (nhập NL-yymmdd-XXXX, xem trong mã hoặc phần mềm).
 - Đơn bị thu hồi không "Nhận mã đã mua" lại được. "Khôi phục" để hoàn tác (nút trên dòng đơn, hoặc "Xem danh sách thu hồi").
-- Phần mềm từ bản 3.1.1 hỏi máy chủ mỗi 12 giờ và khi khởi động; bị thu hồi thì hiện thông báo ngay (kèm ngày giờ), mặc định SAU 24 GIỜ mới chuyển (khi bấm Thu hồi có thể nhập số phút: 0 = ngay, 5 = sau 5 phút) sang chỉ xem/xuất dữ liệu. Mất mạng thì giữ trạng thái cũ.
+- Phần mềm từ bản 3.1.1 hỏi máy chủ mỗi 2 giờ và khi khởi động; bị thu hồi thì hiện thông báo ngay (kèm ngày giờ), mặc định SAU 24 GIỜ mới chuyển (khi bấm Thu hồi có thể nhập số phút: 0 = ngay, 5 = sau 5 phút) sang chỉ xem/xuất dữ liệu. Mất mạng thì giữ trạng thái cũ.
 - Triển khai: chỉ cần npx wrangler deploy (bảng thu hồi tự tạo). Nhớ điền database_id thật trong wrangler.toml.

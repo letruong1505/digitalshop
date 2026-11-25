@@ -92,6 +92,6 @@ func licRevokeLoop() {
 	time.Sleep(30 * time.Second)
 	for {
 		licRevokeCheck()
-		time.Sleep(12 * time.Hour)
+		time.Sleep(2 * time.Hour)
 	}
 }
