@@ -259,6 +259,12 @@ func (s *Server) licRoutes(m *http.ServeMux) {
 		st.BuyURL = buyURL(st.Machine)
 		writeJSON(w, st)
 	}))
+	m.HandleFunc("POST /api/license/check", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+		licRevokeCheck()
+		st := licStatus()
+		st.BuyURL = buyURL(st.Machine)
+		writeJSON(w, st)
+	}))
 	m.HandleFunc("POST /api/license/claim", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
 		st, got, err := licClaim()
 		if err != nil { failErr(w, err); return }

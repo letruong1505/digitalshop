@@ -511,7 +511,7 @@ async function loadLic(st) {
   else head = `<span class="pill red">Hết dùng thử</span> Dữ liệu vẫn xem và xuất được; muốn bán hàng tiếp hãy mua bản quyền.`;
   box.innerHTML = `<div>${head}</div>${st.note ? `<div class="ps" style="color:#b3261e">${esc(st.note)}</div>` : ""}
     <div class="row" style="flex-wrap:wrap;gap:8px"><a class="btn pri" href="${esc(st.buyUrl || "#")}" target="_blank" rel="noopener" data-act="licBuy">${st.state === "active" ? "Gia hạn bản quyền" : "Mua bản quyền"}</a>
-      <button class="btn" data-act="licClaim">Nhận mã đã mua</button></div>
+      <button class="btn" data-act="licClaim">Nhận mã đã mua</button>${l ? `<button class="btn" data-act="licCheck">Kiểm tra trạng thái ngay</button>` : ""}</div>
     <div class="ps">Mua xong và chuyển khoản, phần mềm tự nhận mã và kích hoạt (chờ khoảng 1 phút). Nếu chưa thấy, bấm “Nhận mã đã mua”.</div>
     <div class="field"><label for="lic-key">Hoặc dán mã kích hoạt (bắt đầu bằng DS1.)</label><div class="row"><input id="lic-key" class="in num grow" autocomplete="off" placeholder="DS1.…"><button class="btn" data-act="licKey">Kích hoạt</button></div></div>
     <div class="ps">Mã máy này: <b class="num" style="user-select:all">${esc(st.machine)}</b></div>`;
@@ -534,6 +534,12 @@ ACT.licClaim = async () => {
   if (!r) return;
   toast(r.new ? "Đã nhận và kích hoạt bản quyền" : r.found ? "Bản quyền đã được kích hoạt" : "Chưa thấy khoản thanh toán nào cho máy này", !r.found);
   loadLic(r.status);
+};
+ACT.licCheck = async () => {
+  const st = await run(() => api("POST", "/api/license/check"));
+  if (!st) return;
+  toast(st.state === "revoked" ? "Bản quyền đã bị thu hồi" : st.revokeOn ? "Bản quyền đã bị thu hồi, sắp chuyển sang chỉ xem" : "Bản quyền đang hoạt động bình thường");
+  loadLic(st);
 };
 ACT.licKey = async () => {
   const k = $("#lic-key").value.trim(); if (!k) return toast("Hãy dán mã kích hoạt", true);
