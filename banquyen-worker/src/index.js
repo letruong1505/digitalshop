@@ -246,17 +246,21 @@ async function sepay(req, env) {
 
 // ---------- thu hồi ----------
 // Bảng revoked giữ số bản quyền (NL-...) bị thu hồi; phần mềm hỏi định kỳ qua /api/check.
+let revokedReady = false;
 async function ensureRevoked(env) {
-  await env.DB.prepare("CREATE TABLE IF NOT EXISTS revoked (license_id TEXT PRIMARY KEY, at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '')").run();
+  if (revokedReady) return;
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS revoked (license_id TEXT PRIMARY KEY, at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', eff INTEGER NOT NULL DEFAULT 0)").run();
+  try { await env.DB.prepare("ALTER TABLE revoked ADD COLUMN eff INTEGER NOT NULL DEFAULT 0").run(); } catch (e) { /* đã có cột */ }
+  revokedReady = true;
 }
 
 async function check(url, env) {
   const id = String(url.searchParams.get("id") || "").toUpperCase().slice(0, 40);
   if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Thiếu số bản quyền");
   await ensureRevoked(env);
-  const r = await env.DB.prepare("SELECT at FROM revoked WHERE license_id=?1").bind(id).first();
+  const r = await env.DB.prepare("SELECT at,eff FROM revoked WHERE license_id=?1").bind(id).first();
   // Báo trước 1 ngày: máy khách hiện thông báo ngay, đến mốc "effective" mới chuyển sang chỉ xem/xuất dữ liệu.
-  return json({ ok: true, revoked: !!r, at: r ? r.at : 0, effective: r ? r.at + 24 * 3600 * 1000 : 0 });
+  return json({ ok: true, revoked: !!r, at: r ? r.at : 0, effective: r ? (r.eff || r.at + 24 * 3600 * 1000) : 0 });
 }
 
 // ---------- quản trị ----------
@@ -288,7 +292,7 @@ async function admin(req, url, env) {
       await env.DB.prepare("UPDATE orders SET status='revoked', note=?1 WHERE code=?2").bind("Thu hồi: " + clean(b.note, 100), String(b.code).toUpperCase()).run();
     }
     if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Số bản quyền không đúng dạng NL-…");
-    await env.DB.prepare("INSERT OR REPLACE INTO revoked(license_id,at,note) VALUES(?1,?2,?3)").bind(id, Date.now(), clean(b.note, 100)).run();
+    await env.DB.prepare("INSERT OR REPLACE INTO revoked(license_id,at,note,eff) VALUES(?1,?2,?3,?4)").bind(id, Date.now(), clean(b.note, 100), b.immediate ? Date.now() : Date.now() + 24 * 3600 * 1000).run();
     return json({ ok: true, id });
   }
   if (path === "/admin/api/unrevoke" && req.method === "POST") {
@@ -307,7 +311,7 @@ async function admin(req, url, env) {
   }
   if (path === "/admin/api/revoked" && req.method === "GET") {
     await ensureRevoked(env);
-    return json({ list: (await env.DB.prepare("SELECT license_id,at,note FROM revoked ORDER BY at DESC LIMIT 200").all()).results });
+    return json({ list: (await env.DB.prepare("SELECT license_id,at,note,eff FROM revoked ORDER BY at DESC LIMIT 200").all()).results });
   }
   if (path === "/admin/api/approve" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));

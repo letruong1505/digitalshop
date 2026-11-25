@@ -346,7 +346,8 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
           r.onclick = function () {
             var why = prompt("Thu hồi bản quyền " + (o.license_id || "") + " của " + o.shop + "? Máy khách sẽ bị khóa bán hàng khi có internet. Lý do (vd: hoàn tiền):", "");
             if (why === null) return;
-            api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ code: o.code, note: why }) }).then(load).catch(function (e) { alert(e.message); });
+            var now = confirm("Khóa NGAY LẬP TỨC (không báo trước)?\nOK = khóa ngay · Hủy = báo trước 24 giờ");
+            api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ code: o.code, note: why, immediate: now }) }).then(load).catch(function (e) { alert(e.message); });
           };
           a.appendChild(r);
         }
@@ -371,7 +372,8 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
     var id = prompt("Nhập số bản quyền cần thu hồi (dạng NL-261112-Y5RS), dùng cho cả mã cấp tay:", "");
     if (!id) return;
     var why = prompt("Lý do (không bắt buộc):", "") || "";
-    api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ id: id, note: why }) }).then(function (r) { alert("Đã thu hồi " + r.id); load(); }).catch(function (e) { alert(e.message); });
+    var now = confirm("Khóa NGAY LẬP TỨC (không báo trước)?\nOK = khóa ngay · Hủy = báo trước 24 giờ");
+    api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ id: id, note: why, immediate: now }) }).then(function (r) { alert("Đã thu hồi " + r.id); load(); }).catch(function (e) { alert(e.message); });
   };
   $("rl").onclick = function () {
     api("/admin/api/revoked").then(function (r) {
