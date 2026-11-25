@@ -300,12 +300,32 @@ async function ensureRevoked(env) {
   revokedReady = true;
 }
 
-async function check(url, env) {
-  const id = String(url.searchParams.get("id") || "").toUpperCase().slice(0, 40);
+// Bảng customers: thông tin cửa hàng do phần mềm tự báo lên (tên, điện thoại, địa chỉ) + ghi chú của quản trị.
+let customersReady = false;
+async function ensureCustomers(env) {
+  if (customersReady) return;
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS customers (license_id TEXT PRIMARY KEY, machine TEXT NOT NULL DEFAULT '', shop TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', addr TEXT NOT NULL DEFAULT '', ver TEXT NOT NULL DEFAULT '', first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '')").run();
+  customersReady = true;
+}
+
+async function check(req, url, env) {
+  let b = {};
+  if (req.method === "POST") b = await req.json().catch(() => ({}));
+  const id = String(b.id || url.searchParams.get("id") || "").toUpperCase().slice(0, 40);
   if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Thiếu số bản quyền");
   await ensureRevoked(env);
+  if (req.method === "POST") {
+    await ensureCustomers(env);
+    const now = Date.now();
+    // Ghi đè thông tin do phần mềm báo; giữ nguyên ghi chú của quản trị. Mã đã gắn với một máy thì chỉ máy đó được cập nhật
+    // (người ngoài đoán số bản quyền cũng không sửa được tên/điện thoại khách).
+    await env.DB.prepare(
+      "INSERT INTO customers(license_id,machine,shop,phone,addr,ver,first_seen,last_seen) VALUES(?1,?2,?3,?4,?5,?6,?7,?7) " +
+      "ON CONFLICT(license_id) DO UPDATE SET machine=?2, shop=?3, phone=?4, addr=?5, ver=?6, last_seen=?7 WHERE customers.machine='' OR customers.machine=?2"
+    ).bind(id, clean(b.machine, 24), clean(b.shop, 80), clean(b.phone, 20), clean(b.addr, 160), clean(b.ver, 16), now).run();
+  }
   const r = await env.DB.prepare("SELECT at,eff FROM revoked WHERE license_id=?1").bind(id).first();
-  // Báo trước 1 ngày: máy khách hiện thông báo ngay, đến mốc "effective" mới chuyển sang chỉ xem/xuất dữ liệu.
+  // Báo trước: máy khách hiện thông báo ngay, đến mốc "effective" mới chuyển sang chỉ xem/xuất dữ liệu.
   return json({ ok: true, revoked: !!r, at: r ? r.at : 0, effective: r ? (r.eff || r.at + 24 * 3600 * 1000) : 0 });
 }
 
@@ -354,6 +374,30 @@ async function admin(req, url, env) {
     }
     return json({ ok: true, code });
   }
+  if (path === "/admin/api/customers" && req.method === "GET") {
+    await ensureCustomers(env); await ensureRevoked(env);
+    const rows = await env.DB.prepare(
+      "SELECT c.license_id,c.machine,c.shop,c.phone,c.addr,c.ver,c.first_seen,c.last_seen,c.note, (SELECT 1 FROM revoked r WHERE r.license_id=c.license_id) AS revoked FROM customers c ORDER BY c.last_seen DESC LIMIT 500"
+    ).all();
+    return json({ list: rows.results });
+  }
+  if (path === "/admin/api/customer" && req.method === "GET") {
+    await ensureCustomers(env);
+    const id = String(url.searchParams.get("id") || "").toUpperCase();
+    const c = await env.DB.prepare("SELECT license_id,machine,shop,phone,addr,ver,last_seen,note FROM customers WHERE license_id=?1").bind(id).first();
+    return json({ customer: c || null });
+  }
+  if (path === "/admin/api/customer-note" && req.method === "POST") {
+    await ensureCustomers(env);
+    const b = await req.json().catch(() => ({}));
+    const id = String(b.id || "").toUpperCase();
+    if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Số bản quyền không đúng");
+    const now = Date.now();
+    await env.DB.prepare(
+      "INSERT INTO customers(license_id,first_seen,last_seen,note) VALUES(?1,?2,0,?3) ON CONFLICT(license_id) DO UPDATE SET note=?3"
+    ).bind(id, now, clean(b.note, 300)).run();
+    return json({ ok: true });
+  }
   if (path === "/admin/api/revoke" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));
     await ensureRevoked(env);
@@ -367,6 +411,9 @@ async function admin(req, url, env) {
       await env.DB.prepare("UPDATE orders SET status='revoked', note=?1 WHERE code=?2").bind("Thu hồi: " + clean(b.note, 100), String(b.code).toUpperCase()).run();
     }
     if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Số bản quyền không đúng dạng NL-…");
+    await ensureCustomers(env);
+    const cu = await env.DB.prepare("SELECT shop,phone,machine FROM customers WHERE license_id=?1").bind(id).first();
+    if (cu) { shop = shop || cu.shop; phone = phone || cu.phone; machine = machine || cu.machine; }
     if (!shop) return fail("Cần tên khách hàng để tránh thu hồi nhầm. Dán cả mã kích hoạt (DS1…) hoặc nhập tên cửa hàng.");
     const eff = Date.now() + minutesOf(b) * 60000;
     await env.DB.prepare("INSERT OR REPLACE INTO revoked(license_id,at,note,eff,shop,machine,phone) VALUES(?1,?2,?3,?4,?5,?6,?7)").bind(id, Date.now(), clean(b.note, 100), eff, shop, machine, phone).run();
@@ -387,8 +434,8 @@ async function admin(req, url, env) {
     return json({ ok: true, id });
   }
   if (path === "/admin/api/revoked" && req.method === "GET") {
-    await ensureRevoked(env);
-    return json({ list: (await env.DB.prepare("SELECT license_id,at,note,eff,shop,machine,phone FROM revoked ORDER BY at DESC LIMIT 200").all()).results });
+    await ensureRevoked(env); await ensureCustomers(env);
+    return json({ list: (await env.DB.prepare("SELECT r.license_id,r.at,r.note,r.eff,r.shop,r.machine,r.phone,c.addr,c.note AS cnote,c.shop AS app_shop FROM revoked r LEFT JOIN customers c ON c.license_id=r.license_id ORDER BY r.at DESC LIMIT 200").all()).results });
   }
   if (path === "/admin/api/approve" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));
@@ -413,7 +460,7 @@ export default {
       if (req.method === "GET" && p === "/api/order") return await getOrder(url, env);
       if (req.method === "GET" && p === "/api/partner") return await partnerInfo(url, env);
       if (req.method === "GET" && p === "/api/claim") return await claim(url, env);
-      if (req.method === "GET" && p === "/api/check") return await check(url, env);
+      if ((req.method === "GET" || req.method === "POST") && p === "/api/check") return await check(req, url, env);
       if (req.method === "POST" && p === "/sepay") return await sepay(req, env);
       if (p.startsWith("/admin/api/")) return await admin(req, url, env);
       return fail("Không có", 404);

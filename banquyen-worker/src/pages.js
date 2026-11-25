@@ -312,8 +312,12 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
       <table><thead><tr><th>Mã</th><th>Đối tác</th><th>Giảm</th><th>Đơn đã cấp</th><th>Doanh thu</th><th>Trạng thái</th><th></th></tr></thead><tbody id="ptn"></tbody></table>
     </div>
     <div class="card">
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px"><b>Khách hàng đang dùng (do phần mềm tự báo lên)</b><input id="cq" placeholder="Lọc theo tên, điện thoại, địa chỉ, mã máy…" style="width:280px"></div>
+      <table><thead><tr><th>Khách hàng</th><th>Điện thoại</th><th>Địa chỉ</th><th>Mã máy</th><th>Số bản quyền</th><th>Bản</th><th>Online lần cuối</th><th>Ghi chú</th><th></th></tr></thead><tbody id="cus"></tbody></table>
+    </div>
+    <div class="card">
       <div class="row" style="margin-bottom:8px"><b>Bản quyền đã thu hồi</b></div>
-      <table><thead><tr><th>Số bản quyền</th><th>Khách hàng</th><th>Điện thoại</th><th>Mã máy</th><th>Thu hồi lúc</th><th>Khóa từ</th><th>Lý do</th><th></th></tr></thead><tbody id="rvl"></tbody></table>
+      <table><thead><tr><th>Số bản quyền</th><th>Khách hàng</th><th>Điện thoại</th><th>Địa chỉ</th><th>Mã máy</th><th>Thu hồi lúc</th><th>Khóa từ</th><th>Lý do</th><th>Ghi chú</th><th></th></tr></thead><tbody id="rvl"></tbody></table>
     </div>
     <div class="card"><b>Giao dịch cần xem (không khớp đơn, chuyển thiếu, lỗi)</b><table><thead><tr><th>Lúc</th><th>Số tiền</th><th>Nội dung</th><th>Đơn</th><th>Kết quả</th></tr></thead><tbody id="odd"></tbody></table></div>
   </div>
@@ -377,7 +381,7 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
         }
         rows.appendChild(tr);
       });
-      loadPartners(); loadRevoked();
+      loadPartners(); loadCust();
       var odd = $("odd"); odd.textContent = "";
       j.odd.forEach(function (x) {
         var tr = document.createElement("tr");
@@ -426,12 +430,20 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
   }
   function el(tag, text, css) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (css) e.style.cssText = css; return e; }
   function openRevoke(info) {
+    if (info.id && !info._rich) {
+      api("/admin/api/customer?id=" + encodeURIComponent(info.id)).then(function (r) {
+        var c = r.customer; info._rich = true;
+        if (c) { info.shop = c.shop || info.shop; info.phone = c.phone || info.phone; info.machine = c.machine || info.machine; info.addr = c.addr || ""; info.cnote = c.note || ""; info.ver = c.ver || ""; info.seen = c.last_seen || 0; }
+        openRevoke(info);
+      }).catch(function () { info._rich = true; openRevoke(info); });
+      return;
+    }
     var old = $("mdl"); if (old) old.remove();
     var bg = el("div", null, "position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9;padding:12px");
     bg.id = "mdl";
     var box = el("div", null, "background:var(--card,#1c2128);color:inherit;border:1px solid var(--line,#444);border-radius:12px;padding:18px;max-width:460px;width:100%");
     box.appendChild(el("h3", "Xác nhận thu hồi bản quyền", "margin:0 0 10px"));
-    var rows = [["Khách hàng", info.shop], ["Điện thoại", info.phone], ["Mã máy", info.machine], ["Số bản quyền", info.id], ["Gói / hạn", (info.plan ? info.plan + " · " : "") + (info.exp ? "đến " + info.exp : "vĩnh viễn")]];
+    var rows = [["Khách hàng", info.shop], ["Điện thoại", info.phone], ["Địa chỉ", info.addr], ["Mã máy", info.machine], ["Số bản quyền", info.id], ["Gói / hạn", (info.plan ? info.plan + " · " : "") + (info.exp ? "đến " + info.exp : "vĩnh viễn")], ["Phiên bản", info.ver], ["Online lần cuối", info.seen ? dt(info.seen) : ""], ["Ghi chú", info.cnote]];
     var tb = el("div", null, "background:rgba(255,255,255,.06);border-radius:8px;padding:10px;margin-bottom:10px;font-size:14px;line-height:1.7");
     rows.forEach(function (r) { if (!r[1] && r[0] !== "Khách hàng") return; var d = el("div"); d.appendChild(el("span", r[0] + ": ", "opacity:.7")); d.appendChild(el("b", r[1] || "(chưa biết)")); tb.appendChild(d); });
     box.appendChild(tb);
@@ -470,14 +482,40 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
     if (/^NL-/i.test(v)) { openRevoke({ id: v.toUpperCase(), shop: "" }); return; }
     alert("Không đọc được. Dán đủ mã DS1… hoặc nhập số bản quyền dạng NL-261112-Y5RS.");
   };
+  var custAll = [];
+  function renderCust() {
+    var q = ($("cq").value || "").toLowerCase(), b = $("cus"); b.textContent = "";
+    custAll.filter(function (c) { return !q || [c.shop, c.phone, c.addr, c.machine, c.license_id, c.note].join(" ").toLowerCase().indexOf(q) >= 0; }).forEach(function (c) {
+      var tr = document.createElement("tr");
+      cell(tr, (c.shop || "(chưa báo tên)") + (c.revoked ? " · ĐÃ THU HỒI" : ""), c.revoked ? "bad" : "");
+      cell(tr, c.phone || ""); cell(tr, c.addr || ""); cell(tr, c.machine || "", "mono"); cell(tr, c.license_id, "mono"); cell(tr, c.ver || "");
+      cell(tr, c.last_seen ? dt(c.last_seen) : "chưa online"); cell(tr, c.note || "");
+      var a = cell(tr, "");
+      var n = document.createElement("button"); n.className = "l"; n.type = "button"; n.textContent = "Ghi chú";
+      n.onclick = function () {
+        var v = prompt("Ghi chú về " + (c.shop || c.license_id) + " (ví dụ: đại lý, đã hoàn tiền, hay gọi hỗ trợ…):", c.note || "");
+        if (v === null) return;
+        api("/admin/api/customer-note", { method: "POST", body: JSON.stringify({ id: c.license_id, note: v }) }).then(loadCust).catch(function (e) { alert(e.message); });
+      };
+      a.appendChild(n);
+      if (!c.revoked) {
+        var r = document.createElement("button"); r.className = "l"; r.type = "button"; r.textContent = "Thu hồi";
+        r.onclick = function () { openRevoke({ id: c.license_id, shop: c.shop, phone: c.phone, machine: c.machine }); };
+        a.appendChild(r);
+      }
+      b.appendChild(tr);
+    });
+  }
+  function loadCust() { api("/admin/api/customers").then(function (r) { custAll = r.list; renderCust(); loadRevoked(); }).catch(function () {}); }
+  $("cq").oninput = renderCust;
   function loadRevoked() {
     api("/admin/api/revoked").then(function (r) {
       var b = $("rvl"); b.textContent = "";
       if (!r.list.length) { var tr0 = document.createElement("tr"); cell(tr0, "Chưa thu hồi bản quyền nào."); b.appendChild(tr0); return; }
       r.list.forEach(function (x) {
         var tr = document.createElement("tr");
-        cell(tr, x.license_id, "mono"); cell(tr, x.shop || "(không rõ)"); cell(tr, x.phone || ""); cell(tr, x.machine || "", "mono");
-        cell(tr, dt(x.at)); cell(tr, dt(x.eff || x.at + 86400000)); cell(tr, x.note || "");
+        cell(tr, x.license_id, "mono"); cell(tr, x.app_shop || x.shop || "(không rõ)"); cell(tr, x.phone || ""); cell(tr, x.addr || ""); cell(tr, x.machine || "", "mono");
+        cell(tr, dt(x.at)); cell(tr, dt(x.eff || x.at + 86400000)); cell(tr, x.note || ""); cell(tr, x.cnote || "");
         var a = cell(tr, ""), u = document.createElement("button"); u.className = "l"; u.type = "button"; u.textContent = "Khôi phục";
         u.onclick = function () {
           if (!confirm("Khôi phục bản quyền " + x.license_id + " của " + (x.shop || "khách này") + "?")) return;

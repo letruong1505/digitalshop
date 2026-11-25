@@ -100,9 +100,15 @@ func TestLicenseRevoke(t *testing.T) {
 	priv := licTestSetup(t)
 	key := signLic(priv, License{V: 1, ID: "NL-261125-ABCD", Machine: "AAAA-BBBB-CCCC-DDDD", Shop: "G", Plan: "hddt", Iss: "x"})
 	mode := "ok" // ok | revoked | down | garbage
+	var got map[string]string
+	licInfoFn = func() (string, string, string) { return "Tiệm G", "0912345678", "12 Lê Lợi" }
+	defer func() { licInfoFn = nil }()
 	effAt := time.Now().Add(24*time.Hour).UnixMilli()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/check" || r.URL.Query().Get("id") != "NL-261125-ABCD" { w.WriteHeader(404); return }
+		var in map[string]string
+		json.NewDecoder(r.Body).Decode(&in)
+		got = in
+		if r.Method != "POST" || r.URL.Path != "/api/check" || in["id"] != "NL-261125-ABCD" { w.WriteHeader(404); return }
 		switch mode {
 		case "down":
 			w.WriteHeader(500)
@@ -119,6 +125,10 @@ func TestLicenseRevoke(t *testing.T) {
 	defer os.Unsetenv("DS_BUY_URL")
 	lic.st.Key = key
 	if s := licStatus(); s.State != "active" { t.Fatalf("start: %+v", s) }
+	mode = "ok"
+	licRevokeCheck()
+	if got["shop"] != "Tiệm G" || got["phone"] != "0912345678" || got["addr"] != "12 Lê Lợi" || got["machine"] != "AAAA-BBBB-CCCC-DDDD" || got["ver"] != AppVersion { t.Fatalf("info sent: %v", got) }
+	if len(got) != 6 { t.Fatalf("unexpected fields sent: %v", got) }
 	for _, m := range []string{"down", "garbage"} {
 		mode = m
 		licRevokeCheck()

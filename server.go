@@ -682,6 +682,7 @@ func (s *Server) routes() {
 			return nil
 		})
 		if err != nil { failErr(w, err); return }
+		go licRevokeCheck() // báo tên/điện thoại/địa chỉ mới cho Nam Linh Group
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
 	m.HandleFunc("POST /api/users", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {

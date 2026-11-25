@@ -24,7 +24,7 @@ const (
 	AppName    = "Digital Shop"
 	AppVersion = "3.1.2"
 	// TermsVersion: tăng khi sửa web/legal/DieuKhoanSuDung.txt
-	TermsVersion = "1.0"
+	TermsVersion = "1.1"
 )
 
 func main() {
@@ -57,6 +57,10 @@ func main() {
 	go db.SyncExternal(false)
 	gdt.Init(dir)
 	licInit(dir)
+	licInfoFn = func() (shop, phone, addr string) {
+		db.Read(func(st *State) { shop, phone, addr = st.Settings.ShopName, st.Settings.Phone, st.Settings.Addr })
+		return
+	}
 	srv := NewServer(db, port)
 	url := "http://localhost:" + strconv.Itoa(port)
 	lan := lanAddrs(port)

@@ -4,6 +4,7 @@ package main
 // phần mềm tự lấy mã đã mua về và kích hoạt. Chữ ký mã vẫn được kiểm tra tại máy (parseLicense).
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -49,17 +50,25 @@ func licClaim() (LicStatus, bool, error) {
 	return st, true, nil
 }
 
-// licRevokeCheck hỏi máy chủ xem bản quyền đang dùng có bị thu hồi không. Chỉ khi máy chủ trả lời rõ ràng
-// mới đổi trạng thái; mất mạng hoặc máy chủ lỗi thì giữ nguyên (tiệm mất internet vẫn bán bình thường).
+// licInfoFn do main đặt: trả về tên, điện thoại, địa chỉ cửa hàng đang khai trong Cài đặt.
+var licInfoFn func() (shop, phone, addr string)
+
+// licRevokeCheck báo thông tin liên hệ của cửa hàng cho Nam Linh Group (để quản lý bản quyền, hỗ trợ) và hỏi
+// máy chủ xem bản quyền đang dùng có bị thu hồi không. Chỉ khi máy chủ trả lời rõ ràng mới đổi trạng thái;
+// mất mạng hoặc máy chủ lỗi thì giữ nguyên (tiệm mất internet vẫn bán bình thường).
+// Chỉ gửi: số bản quyền, mã máy, phiên bản, tên/điện thoại/địa chỉ cửa hàng. Không gửi hàng hóa, hóa đơn, khách, công nợ.
 func licRevokeCheck() {
 	lic.mu.Lock()
-	key := lic.st.Key
+	key, machine := lic.st.Key, lic.machine
 	lic.mu.Unlock()
 	if key == "" { return }
 	l, err := parseLicense(key)
 	if err != nil || l.ID == "" { return }
+	info := map[string]string{"id": l.ID, "machine": machine, "ver": AppVersion}
+	if licInfoFn != nil { info["shop"], info["phone"], info["addr"] = licInfoFn() }
+	body, _ := json.Marshal(info)
 	cl := &http.Client{Timeout: 15 * time.Second}
-	resp, err := cl.Get(buyBase() + "/api/check?id=" + url.QueryEscape(l.ID))
+	resp, err := cl.Post(buyBase()+"/api/check", "application/json", bytes.NewReader(body))
 	if err != nil { return }
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 { return }

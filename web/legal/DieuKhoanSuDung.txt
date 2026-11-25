@@ -1,5 +1,5 @@
 ĐIỀU KHOẢN SỬ DỤNG PHẦN MỀM DIGITAL SHOP
-Phiên bản điều khoản 1.0 — áp dụng cho Digital Shop 2.x
+Phiên bản điều khoản 1.1 — áp dụng cho Digital Shop 3.x
 
 1. CÁC BÊN VÀ PHẠM VI ÁP DỤNG
 
@@ -86,7 +86,7 @@ Bên sử dụng được hỗ trợ miễn phí trong thời hạn Bản quyề
 
 7. DỮ LIỆU CỬA HÀNG VÀ DỮ LIỆU CÁ NHÂN
 
-Dữ liệu cửa hàng nằm trên Máy chủ của Bên sử dụng và thuộc về Bên sử dụng; Phần mềm không tự gửi dữ liệu này về Nhà cung cấp.
+Dữ liệu cửa hàng nằm trên Máy chủ của Bên sử dụng và thuộc về Bên sử dụng; Phần mềm không tự gửi dữ liệu này về Nhà cung cấp, trừ thông tin quản lý bản quyền nêu tại mục 7.7.
 
 7.1. Bên sử dụng là bên kiểm soát dữ liệu cá nhân của khách hàng và nhân viên mình theo Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15. Bên sử dụng chỉ nhập thông tin cần cho việc bán hàng và ghi nợ, và tự giữ bí mật mã PIN, máy tính, mạng wifi của Cửa hàng.
 
@@ -99,6 +99,8 @@ Dữ liệu cửa hàng nằm trên Máy chủ của Bên sử dụng và thuộ
 7.5. Tính năng tách đơn bằng AI là tùy chọn và chỉ chạy khi Bên sử dụng tự nhập khóa API của Anthropic. Khi dùng, nội dung tin nhắn dán vào, danh mục hàng hóa và tên khách quen được gửi tới máy chủ của Anthropic ở nước ngoài để xử lý. Bên sử dụng tự quyết định việc dùng, tự trả phí API, tuân thủ điều khoản của Anthropic và quy định về chuyển dữ liệu cá nhân ra nước ngoài. Xóa khóa API trong Cài đặt để tắt tính năng này.
 
 7.6. Bên sử dụng xuất được hàng hóa, khách hàng, nhà cung cấp và hóa đơn ra file Excel bất cứ lúc nào, kể cả sau khi Bản quyền chấm dứt.
+
+7.7. Thông tin quản lý bản quyền: khi có internet, Phần mềm định kỳ gửi về Nhà cung cấp số bản quyền, mã máy, phiên bản Phần mềm và thông tin liên hệ của Cửa hàng mà Bên sử dụng khai trong Cài đặt (tên cửa hàng, số điện thoại, địa chỉ). Nhà cung cấp chỉ dùng thông tin này để quản lý bản quyền, hỗ trợ, thông báo cập nhật và thu hồi bản quyền khi có căn cứ (ví dụ hoàn tiền, vi phạm mục 4). Phần mềm không gửi hàng hóa, hóa đơn, khách hàng, công nợ hoặc dữ liệu bán hàng. Bên sử dụng có thể sửa hoặc xóa các thông tin liên hệ trong Cài đặt; lần gửi kế tiếp sẽ cập nhật theo.
 
 8. HÓA ĐƠN ĐIỆN TỬ, MÃ QR VÀ PHẦN MỀM KHÁC
 
@@ -157,7 +159,7 @@ Tổng trách nhiệm bồi thường của Nhà cung cấp không vượt quá 
 
 11.6. Một điều khoản bị vô hiệu không làm ảnh hưởng tới các điều khoản còn lại.
 
-11.7. Phiên bản Điều khoản: 1.0, áp dụng cho Digital Shop 2.x. Bên sử dụng cũng chấp nhận Điều khoản khi tích ô đồng ý trong bộ cài đặt.
+11.7. Phiên bản Điều khoản: 1.1, áp dụng cho Digital Shop 3.x. Bên sử dụng cũng chấp nhận Điều khoản khi tích ô đồng ý trong bộ cài đặt.
 
 PHỤ LỤC: GÓI BẢN QUYỀN VÀ LIÊN HỆ
 

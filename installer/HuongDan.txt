@@ -103,3 +103,6 @@ BẢN QUYỀN VÀ CẬP NHẬT (từ bản 3.1)
    - Thu hồi bản quyền (hoàn tiền, chia sẻ mã): Nam Linh Group thu hồi trên trang quản trị; máy khách khi có internet
      sẽ hiện thông báo kèm giờ ngày cụ thể (báo trước 1 ngày), đến mốc đó mới chuyển sang chế độ chỉ xem/xuất dữ liệu.
      Phần mềm kiểm tra mỗi 2 giờ; máy mất mạng vẫn bán bình thường.
+   - Thông tin gửi về Nam Linh Group khi có internet: số bản quyền, mã máy, phiên bản, tên/điện thoại/địa chỉ cửa hàng
+     (khai ở Cài đặt → Cửa hàng) để quản lý bản quyền và hỗ trợ. Không gửi hàng hóa, hóa đơn, khách hàng, công nợ.
+     Xem Điều khoản mục 7.7.
