@@ -1,0 +1,76 @@
+name: Phát hành Digital Shop
+
+# Chạy tay: GitHub → Actions → "Phát hành Digital Shop" → Run workflow.
+# Build, ký và đưa bản cập nhật lên Cloudflare R2. Phiên bản lấy từ AppVersion trong main.go.
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "Ghi chú bản mới (chỉ ghi điểm thay đổi của bản này)"
+        required: true
+        default: "Cải tiến và sửa lỗi"
+
+permissions:
+  contents: read
+
+env:
+  R2_BUCKET: nam-linh-updates
+  R2_DIR: digitalshop
+  PUBLIC_BASE: https://pub-ccfe83f2b7834443814836e1985185b3.r2.dev
+  UPDATE_PUB: 0eE4Fe+t2pDrJ52nY5A97y78AUMEGJtijFi8pSEBC3Y=
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cài công cụ build
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq nsis mingw-w64 binutils-mingw-w64-x86-64 libc-bin
+      - name: Lấy số phiên bản
+        id: v
+        run: |
+          VER=$(grep -oE 'AppVersion *= *"[0-9.]+"' main.go | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          [ -n "$VER" ] || { echo "Không đọc được AppVersion"; exit 1; }
+          grep -q "$VER" installer/setup.nsi || { echo "setup.nsi chưa đúng số phiên bản $VER"; exit 1; }
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+      - name: Kiểm thử
+        run: go vet ./... && go test ./...
+      - name: Build exe và bộ cài
+        run: sh installer/build.sh
+      - name: Đặt tên file phát hành
+        run: |
+          VER=${{ steps.v.outputs.ver }}
+          mkdir -p rel
+          cp dist/TapHoaX.exe "rel/DigitalShop-$VER.exe"
+          cp dist/TapHoaX-CaiDat-$VER.exe "rel/DigitalShop-CaiDat-$VER.exe"
+          ls -la rel
+      - name: Ký bản cập nhật
+        env:
+          UPDATE_SIGN_KEY: ${{ secrets.UPDATE_SIGN_KEY }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          VER=${{ steps.v.outputs.ver }}
+          go run ./tools/kyupdate -exe "rel/DigitalShop-$VER.exe" -version "$VER" \
+            -url "$PUBLIC_BASE/$R2_DIR/DigitalShop-$VER.exe" -notes "$NOTES" -pub "$UPDATE_PUB" -out rel/latest-shop.json
+      - name: Đưa lên Cloudflare R2 (exe trước, file latest sau cùng)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          VER=${{ steps.v.outputs.ver }}
+          put() { npx --yes wrangler@4 r2 object put "$R2_BUCKET/$R2_DIR/$1" --file "rel/$1" --content-type "$2" --remote; }
+          put "DigitalShop-$VER.exe" application/octet-stream
+          put "DigitalShop-CaiDat-$VER.exe" application/octet-stream
+          curl -fsSI "$PUBLIC_BASE/$R2_DIR/DigitalShop-$VER.exe" | head -1
+          put latest-shop.json application/json
+      - name: Kiểm tra công khai
+        run: |
+          sleep 5
+          curl -fsS "$PUBLIC_BASE/$R2_DIR/latest-shop.json" | tee /dev/stderr | grep -q "\"version\": \"${{ steps.v.outputs.ver }}\""
+          echo "Đã phát hành ${{ steps.v.outputs.ver }}"
