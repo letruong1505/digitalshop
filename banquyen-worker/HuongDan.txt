@@ -106,3 +106,9 @@ MÃ ĐỐI TÁC & % GIẢM GIÁ
 - Trang mua có ô "Mã đối tác (nếu có)" + nút "Áp dụng" hiện giá sau giảm. Giá sau giảm làm tròn xuống nghìn đồng.
 - Đơn lưu mã đối tác và số tiền giảm; bảng đối tác hiện số đơn đã cấp và doanh thu để tính hoa hồng.
 - Mã sai hoặc đã tắt thì không tạo được đơn (khách xóa ô mã nếu không có).
+
+THU HỒI AN TOÀN (tránh nhầm khách)
+- Bấm "Thu hồi" ở dòng đơn: hộp xác nhận hiện Tên khách, Điện thoại, Mã máy, Số bản quyền, Gói/hạn; nhập lý do và SỐ PHÚT khóa (0 = ngay, 5, 60, 1440...).
+- Mã cấp tay: bấm "Thu hồi theo số bản quyền…" rồi DÁN CẢ MÃ KÍCH HOẠT (DS1…): trang tự đọc tên cửa hàng và mã máy trong mã để bạn đối chiếu. Nhập riêng số NL-… thì bắt buộc nhập tên khách.
+- Khung "Bản quyền đã thu hồi" liệt kê khách, điện thoại, mã máy, giờ thu hồi, giờ khóa, lý do; mỗi dòng có nút Khôi phục.
+- Nếu không thấy ô nhập số phút: bạn đang chạy bản Worker cũ hoặc trình duyệt giữ trang cũ — chạy lại npx wrangler deploy và bấm Ctrl+F5.

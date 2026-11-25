@@ -294,7 +294,9 @@ let revokedReady = false;
 async function ensureRevoked(env) {
   if (revokedReady) return;
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS revoked (license_id TEXT PRIMARY KEY, at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', eff INTEGER NOT NULL DEFAULT 0)").run();
-  try { await env.DB.prepare("ALTER TABLE revoked ADD COLUMN eff INTEGER NOT NULL DEFAULT 0").run(); } catch (e) { /* đã có cột */ }
+  for (const col of ["eff INTEGER NOT NULL DEFAULT 0", "shop TEXT NOT NULL DEFAULT ''", "machine TEXT NOT NULL DEFAULT ''", "phone TEXT NOT NULL DEFAULT ''"]) {
+    try { await env.DB.prepare("ALTER TABLE revoked ADD COLUMN " + col).run(); } catch (e) { /* đã có cột */ }
+  }
   revokedReady = true;
 }
 
@@ -356,16 +358,19 @@ async function admin(req, url, env) {
     const b = await req.json().catch(() => ({}));
     await ensureRevoked(env);
     let id = String(b.id || "").toUpperCase().trim();
+    let shop = clean(b.shop, 80), machine = clean(b.machine, 24), phone = clean(b.phone, 20);
     if (b.code) {
-      const o = await env.DB.prepare("SELECT license_id FROM orders WHERE code=?1").bind(String(b.code).toUpperCase()).first();
+      const o = await env.DB.prepare("SELECT license_id,shop,machine,phone FROM orders WHERE code=?1").bind(String(b.code).toUpperCase()).first();
       if (!o) return fail("Không thấy đơn", 404);
       if (!o.license_id) return fail("Đơn này chưa cấp mã");
-      id = o.license_id;
+      id = o.license_id; shop = o.shop; machine = o.machine; phone = o.phone;
       await env.DB.prepare("UPDATE orders SET status='revoked', note=?1 WHERE code=?2").bind("Thu hồi: " + clean(b.note, 100), String(b.code).toUpperCase()).run();
     }
     if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Số bản quyền không đúng dạng NL-…");
-    await env.DB.prepare("INSERT OR REPLACE INTO revoked(license_id,at,note,eff) VALUES(?1,?2,?3,?4)").bind(id, Date.now(), clean(b.note, 100), Date.now() + minutesOf(b) * 60000).run();
-    return json({ ok: true, id });
+    if (!shop) return fail("Cần tên khách hàng để tránh thu hồi nhầm. Dán cả mã kích hoạt (DS1…) hoặc nhập tên cửa hàng.");
+    const eff = Date.now() + minutesOf(b) * 60000;
+    await env.DB.prepare("INSERT OR REPLACE INTO revoked(license_id,at,note,eff,shop,machine,phone) VALUES(?1,?2,?3,?4,?5,?6,?7)").bind(id, Date.now(), clean(b.note, 100), eff, shop, machine, phone).run();
+    return json({ ok: true, id, shop, effective: eff });
   }
   if (path === "/admin/api/unrevoke" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));
@@ -383,7 +388,7 @@ async function admin(req, url, env) {
   }
   if (path === "/admin/api/revoked" && req.method === "GET") {
     await ensureRevoked(env);
-    return json({ list: (await env.DB.prepare("SELECT license_id,at,note,eff FROM revoked ORDER BY at DESC LIMIT 200").all()).results });
+    return json({ list: (await env.DB.prepare("SELECT license_id,at,note,eff,shop,machine,phone FROM revoked ORDER BY at DESC LIMIT 200").all()).results });
   }
   if (path === "/admin/api/approve" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));
