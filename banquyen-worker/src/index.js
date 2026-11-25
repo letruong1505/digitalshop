@@ -246,6 +246,13 @@ async function sepay(req, env) {
 
 // ---------- thu hồi ----------
 // Bảng revoked giữ số bản quyền (NL-...) bị thu hồi; phần mềm hỏi định kỳ qua /api/check.
+// Số phút từ lúc thu hồi đến lúc khóa: mặc định 1440 (24 giờ), 0 = ngay, tối đa 7 ngày.
+function minutesOf(b) {
+  if (b.immediate) return 0;
+  const m = Number(b.minutes);
+  return Number.isFinite(m) && b.minutes !== "" && b.minutes != null ? Math.min(10080, Math.max(0, Math.round(m))) : 1440;
+}
+
 let revokedReady = false;
 async function ensureRevoked(env) {
   if (revokedReady) return;
@@ -292,7 +299,7 @@ async function admin(req, url, env) {
       await env.DB.prepare("UPDATE orders SET status='revoked', note=?1 WHERE code=?2").bind("Thu hồi: " + clean(b.note, 100), String(b.code).toUpperCase()).run();
     }
     if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Số bản quyền không đúng dạng NL-…");
-    await env.DB.prepare("INSERT OR REPLACE INTO revoked(license_id,at,note,eff) VALUES(?1,?2,?3,?4)").bind(id, Date.now(), clean(b.note, 100), b.immediate ? Date.now() : Date.now() + 24 * 3600 * 1000).run();
+    await env.DB.prepare("INSERT OR REPLACE INTO revoked(license_id,at,note,eff) VALUES(?1,?2,?3,?4)").bind(id, Date.now(), clean(b.note, 100), Date.now() + minutesOf(b) * 60000).run();
     return json({ ok: true, id });
   }
   if (path === "/admin/api/unrevoke" && req.method === "POST") {

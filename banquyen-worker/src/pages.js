@@ -346,8 +346,8 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
           r.onclick = function () {
             var why = prompt("Thu hồi bản quyền " + (o.license_id || "") + " của " + o.shop + "? Máy khách sẽ bị khóa bán hàng khi có internet. Lý do (vd: hoàn tiền):", "");
             if (why === null) return;
-            var now = confirm("Khóa NGAY LẬP TỨC (không báo trước)?\nOK = khóa ngay · Hủy = báo trước 24 giờ");
-            api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ code: o.code, note: why, immediate: now }) }).then(load).catch(function (e) { alert(e.message); });
+            var mins = prompt("Khóa sau bao nhiêu PHÚT kể từ bây giờ?\n0 = khóa ngay · 5 = sau 5 phút · 1440 = sau 24 giờ (mặc định)", "1440"); if (mins === null) return;
+            api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ code: o.code, note: why, minutes: mins }) }).then(load).catch(function (e) { alert(e.message); });
           };
           a.appendChild(r);
         }
@@ -372,8 +372,8 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
     var id = prompt("Nhập số bản quyền cần thu hồi (dạng NL-261112-Y5RS), dùng cho cả mã cấp tay:", "");
     if (!id) return;
     var why = prompt("Lý do (không bắt buộc):", "") || "";
-    var now = confirm("Khóa NGAY LẬP TỨC (không báo trước)?\nOK = khóa ngay · Hủy = báo trước 24 giờ");
-    api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ id: id, note: why, immediate: now }) }).then(function (r) { alert("Đã thu hồi " + r.id); load(); }).catch(function (e) { alert(e.message); });
+    var mins = prompt("Khóa sau bao nhiêu PHÚT kể từ bây giờ?\n0 = khóa ngay · 5 = sau 5 phút · 1440 = sau 24 giờ (mặc định)", "1440"); if (mins === null) return;
+    api("/admin/api/revoke", { method: "POST", body: JSON.stringify({ id: id, note: why, minutes: mins }) }).then(function (r) { alert("Đã thu hồi " + r.id); load(); }).catch(function (e) { alert(e.message); });
   };
   $("rl").onclick = function () {
     api("/admin/api/revoked").then(function (r) {
