@@ -528,7 +528,10 @@ function licWatch() {
     } catch (e) {}
   }, 5000);
 }
-ACT.licBuy = b => { window.open(b.getAttribute("href"), "_blank", "noopener"); licWatch(); };
+ACT.licBuy = b => {
+  const L = S.lic && S.lic.state === "active" && S.lic.license;
+  if (L && !L.exp) return toast("Bản quyền của bạn là vĩnh viễn, không cần gia hạn.");
+  window.open(b.getAttribute("href"), "_blank", "noopener"); licWatch(); };
 ACT.licClaim = async () => {
   const r = await run(() => api("POST", "/api/license/claim"));
   if (!r) return;
