@@ -104,3 +104,53 @@ func licRevokeLoop() {
 		time.Sleep(2 * time.Hour)
 	}
 }
+
+// buyProxy chuyển yêu cầu mua bản quyền tới máy chủ bản quyền (để hộp mua trong phần mềm không bị chặn CORS
+// và địa chỉ máy chủ do phần mềm quyết định, không nhận từ trình duyệt).
+func buyProxy(w http.ResponseWriter, method, path, rawQuery string, body []byte) {
+	u := buyBase() + path
+	if rawQuery != "" { u += "?" + rawQuery }
+	req, err := http.NewRequest(method, u, bytes.NewReader(body))
+	if err != nil { fail(w, 500, "Lỗi nội bộ"); return }
+	if body != nil { req.Header.Set("Content-Type", "application/json") }
+	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	if err != nil { fail(w, 502, "Không kết nối được máy chủ bản quyền. Kiểm tra internet rồi thử lại."); return }
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<18))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(resp.StatusCode)
+	w.Write(b)
+}
+
+func (s *Server) buyRoutes(m *http.ServeMux) {
+	// Thông tin để dựng hộp mua: bảng giá, mã máy, thông tin cửa hàng đã khai.
+	m.HandleFunc("GET /api/license/buy/info", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+		lic.mu.Lock(); machine := lic.machine; lic.mu.Unlock()
+		var shop, phone string
+		if licInfoFn != nil { shop, phone, _ = licInfoFn() }
+		cl := &http.Client{Timeout: 15 * time.Second}
+		resp, err := cl.Get(buyBase() + "/api/config")
+		if err != nil { fail(w, 502, "Không kết nối được máy chủ bản quyền. Kiểm tra internet rồi thử lại."); return }
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+		var cfg map[string]any
+		if resp.StatusCode != 200 || json.Unmarshal(b, &cfg) != nil { fail(w, 502, "Máy chủ bản quyền chưa trả lời đúng, thử lại sau ít phút."); return }
+		writeJSON(w, map[string]any{"config": cfg, "machine": machine, "shop": shop, "phone": phone, "product": buyProduct})
+	}))
+	m.HandleFunc("GET /api/license/buy/partner", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+		q := url.Values{"sp": {buyProduct}, "plan": {r.URL.Query().Get("plan")}, "code": {r.URL.Query().Get("code")}}
+		buyProxy(w, "GET", "/api/partner", q.Encode(), nil)
+	}))
+	m.HandleFunc("POST /api/license/buy/order", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+		var in map[string]any
+		if json.NewDecoder(io.LimitReader(r.Body, 1<<14)).Decode(&in) != nil { fail(w, 400, "Dữ liệu không hợp lệ"); return }
+		lic.mu.Lock(); machine := lic.machine; lic.mu.Unlock()
+		in["sp"], in["machine"] = buyProduct, machine
+		b, _ := json.Marshal(in)
+		buyProxy(w, "POST", "/api/order", "", b)
+	}))
+	m.HandleFunc("GET /api/license/buy/order", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
+		q := url.Values{"code": {r.URL.Query().Get("code")}, "t": {r.URL.Query().Get("t")}}
+		buyProxy(w, "GET", "/api/order", q.Encode(), nil)
+	}))
+}

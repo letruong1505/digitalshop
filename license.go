@@ -265,11 +265,7 @@ func (s *Server) licRoutes(m *http.ServeMux) {
 		st.BuyURL = buyURL(st.Machine)
 		writeJSON(w, st)
 	}))
-	// Mở trang mua trong trình duyệt mặc định của máy (địa chỉ do máy chủ tự tính, không nhận từ trình duyệt).
-	m.HandleFunc("POST /api/license/buy", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
-		openBrowserPlain(buyURL(licStatus().Machine))
-		writeJSON(w, map[string]bool{"ok": true})
-	}))
+	s.buyRoutes(m)
 	m.HandleFunc("POST /api/license/claim", s.auth(true, func(w http.ResponseWriter, r *http.Request, u *User) {
 		st, got, err := licClaim()
 		if err != nil { failErr(w, err); return }

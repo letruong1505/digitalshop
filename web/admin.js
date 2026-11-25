@@ -510,7 +510,7 @@ async function loadLic(st) {
   else if (st.state === "expired") head = `<span class="pill red">Hết hạn</span> Bản quyền hết hạn ngày ${vn(l.exp)}. Dữ liệu vẫn xem và xuất được.`;
   else head = `<span class="pill red">Hết dùng thử</span> Dữ liệu vẫn xem và xuất được; muốn bán hàng tiếp hãy mua bản quyền.`;
   box.innerHTML = `<div>${head}</div>${st.note ? `<div class="ps" style="color:#b3261e">${esc(st.note)}</div>` : ""}
-    <div class="row" style="flex-wrap:wrap;gap:8px">${st.state === "active" && l && !l.exp ? "" : `<a class="btn pri" href="${esc(st.buyUrl || "#")}" target="_blank" rel="noopener" data-act="licBuy">${st.state === "active" ? "Gia hạn bản quyền" : "Mua bản quyền"}</a>`}
+    <div class="row" style="flex-wrap:wrap;gap:8px">${st.state === "active" && l && !l.exp ? "" : `<button class="btn pri" data-act="licBuy">${st.state === "active" ? "Gia hạn bản quyền" : "Mua bản quyền"}</button>`}
       <button class="btn" data-act="licClaim">Nhận mã đã mua</button>${l ? `<button class="btn" data-act="licCheck">Kiểm tra trạng thái ngay</button>` : ""}</div>
     <div class="ps">Mua xong và chuyển khoản, phần mềm tự nhận mã và kích hoạt (chờ khoảng 1 phút). Nếu chưa thấy, bấm “Nhận mã đã mua”.</div>
     <div class="field"><label for="lic-key">Hoặc dán mã kích hoạt (bắt đầu bằng DS1.)</label><div class="row"><input id="lic-key" class="in num grow" autocomplete="off" placeholder="DS1.…"><button class="btn" data-act="licKey">Kích hoạt</button></div></div>
@@ -528,12 +528,84 @@ function licWatch() {
     } catch (e) {}
   }, 5000);
 }
-ACT.licBuy = (b, e) => {
-  if (e && e.preventDefault) e.preventDefault();
+let buyPoll = null;
+function buyStop() { clearInterval(buyPoll); buyPoll = null; }
+ACT.licBuy = async () => {
   const L = S.lic && S.lic.state === "active" && S.lic.license;
   if (L && !L.exp) return toast("Bản quyền của bạn là vĩnh viễn, không cần gia hạn.");
-  api("POST", "/api/license/buy").then(() => toast("Đã mở trang mua bản quyền trong trình duyệt của máy")).catch(() => window.open(b.getAttribute("href"), "_blank", "noopener"));
-  licWatch(); };
+  let info;
+  try { info = await api("GET", "/api/license/buy/info"); } catch (e) { return toast(e.message, true); }
+  const cfg = info.config || {}, prices = (cfg.prices || {})[info.product] || {}, plans = cfg.plans || {};
+  const keys = Object.keys(plans).filter(k => prices[k]);
+  if (!keys.length) return toast("Chưa có bảng giá, liên hệ Nam Linh Group", true);
+  const def = keys.includes("1y") ? "1y" : keys[0];
+  openSheet(`<div class="sheet-h"><h2>Mua bản quyền Digital Shop</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div id="buyBody"><form id="buyForm" class="form">
+      <div class="row full"><label class="ps">Chọn thời hạn</label><div id="buyPlans" style="display:grid;gap:6px">${keys.map(k => `<label class="check" style="justify-content:space-between"><span><input type="radio" name="bplan" value="${esc(k)}" ${k === def ? "checked" : ""}> ${esc(plans[k])}</span><b>${money(prices[k])}</b></label>`).join("")}</div></div>
+      <div class="row"><input id="bshop" class="in grow" placeholder="Tên cửa hàng" value="${esc(info.shop || "")}" required><input id="bphone" class="in" style="width:150px" placeholder="Số điện thoại" inputmode="tel" value="${esc(info.phone || "")}" required></div>
+      <div class="row"><input id="bemail" class="in grow" placeholder="Email nhận hóa đơn (không bắt buộc)"><input id="bmst" class="in" style="width:170px" placeholder="Mã số thuế (nếu có)"></div>
+      <div class="row"><input id="bpart" class="in grow" placeholder="Mã đối tác (nếu có)" autocomplete="off"><button type="button" class="btn" id="bpartOk">Áp dụng</button></div>
+      <div id="bpartMsg" class="ps" style="min-height:18px"></div>
+      <div id="bErr" class="ps" style="color:var(--red);min-height:18px"></div>
+      <label class="check"><input type="checkbox" id="bagree" required> <span>Tôi đồng ý Điều khoản sử dụng của Digital Shop (xem ở Cài đặt → Bản quyền)</span></label>
+      <div class="row full"><span class="grow"></span><button type="button" class="btn" data-act="close">Hủy</button><button class="btn pri" type="submit">Tiếp tục thanh toán</button></div>
+    </form></div>`, { wide: false, onClose: buyStop });
+  const plan = () => document.querySelector('input[name="bplan"]:checked').value;
+  const err = m => { $("#bErr").textContent = m || ""; };
+  let applied = "";
+  $("#bpartOk").onclick = async () => {
+    const code = $("#bpart").value.trim(); err("");
+    if (!code) { applied = ""; $("#bpartMsg").textContent = ""; return; }
+    try {
+      const r = await api("GET", "/api/license/buy/partner?plan=" + encodeURIComponent(plan()) + "&code=" + encodeURIComponent(code));
+      applied = code;
+      $("#bpartMsg").style.color = "var(--green-text)";
+      $("#bpartMsg").textContent = r.percent >= 100 ? "Giảm 100%: miễn phí, mã kích hoạt được cấp ngay" : "Giảm " + r.percent + "%: " + money(r.list) + " còn " + money(r.amount);
+    } catch (e) { applied = ""; $("#bpartMsg").style.color = "var(--red)"; $("#bpartMsg").textContent = e.message; }
+  };
+  $("#buyForm").onsubmit = async ev => {
+    ev.preventDefault(); err("");
+    const btn = ev.target.querySelector('button[type="submit"]'); btn.disabled = true;
+    try {
+      const o = await api("POST", "/api/license/buy/order", { plan: plan(), shop: $("#bshop").value.trim(), phone: $("#bphone").value.trim(), email: $("#bemail").value.trim(), mst: $("#bmst").value.trim(), partner: $("#bpart").value.trim(), agree: $("#bagree").checked });
+      if (o.status === "paid") return buyDone(o);
+      buyPay(o);
+    } catch (e) { err(e.message); btn.disabled = false; }
+  };
+};
+function buyPay(o) {
+  const b = $("#buyBody"); if (!b) return;
+  b.innerHTML = `<p class="ps" style="margin:0 0 8px">Quét mã QR bằng app ngân hàng. Số tiền và nội dung đã điền sẵn, bạn không cần sửa. Thanh toán xong, phần mềm tự kích hoạt trong ít giây.</p>
+    <div style="display:grid;place-items:center;gap:8px"><div style="width:240px;min-height:240px;background:#fff;padding:8px;border-radius:10px"><img id="bqr" alt="QR thanh toán" style="width:100%;display:block"></div>
+    <div id="bqrErr" class="ps" hidden>Không tải được mã QR, hãy chuyển khoản theo thông tin bên dưới.</div></div>
+    <table class="kv" style="margin-top:10px"><tbody>
+      <tr><td class="ps">Ngân hàng</td><td><b>${esc(o.bank.bank)}</b></td></tr>
+      <tr><td class="ps">Số tài khoản</td><td><b class="num">${esc(o.bank.acc)}</b></td></tr>
+      <tr><td class="ps">Chủ tài khoản</td><td><b>${esc(o.bank.name)}</b></td></tr>
+      <tr><td class="ps">Số tiền</td><td><b class="num">${money(o.amount)}</b></td></tr>
+      <tr><td class="ps">Nội dung</td><td><b class="num">${esc(o.code)}</b></td></tr></tbody></table>
+    <div id="bwait" class="ps" style="margin-top:8px">Đang chờ thanh toán…</div>
+    <div class="row" style="margin-top:8px"><span class="grow"></span><button class="btn" data-act="close">Đóng, thanh toán sau</button></div>`;
+  const img = $("#bqr"); img.onerror = () => { img.style.display = "none"; $("#bqrErr").hidden = false; }; img.src = o.qr;
+  buyStop(); const t0 = Date.now();
+  buyPoll = setInterval(async () => {
+    if (Date.now() - t0 > 30 * 60 * 1000) { buyStop(); const w = $("#bwait"); if (w) w.textContent = "Hết thời gian chờ. Nếu đã chuyển khoản, đóng hộp này rồi bấm Nhận mã đã mua."; return; }
+    try {
+      const r = await api("GET", "/api/license/buy/order?code=" + encodeURIComponent(o.code) + "&t=" + encodeURIComponent(o.token));
+      if (r.status === "paid") buyDone(r);
+    } catch (e) {}
+  }, 4000);
+}
+async function buyDone(o) {
+  buyStop();
+  const b = $("#buyBody"); if (!b) return;
+  let ok = false;
+  try { const r = await api("POST", "/api/license/claim"); ok = r.found; loadLic(r.status); } catch (e) {}
+  b.innerHTML = `<div style="text-align:center;padding:14px 0"><div style="font-size:42px">✓</div><h3 style="margin:6px 0">${ok ? "Đã kích hoạt bản quyền" : "Thanh toán thành công"}</h3>
+    <p class="ps" style="margin:0">${esc(o.product || "")} · ${esc(o.plan || "")}${o.exp ? " · dùng đến hết ngày " + esc(o.exp.split("-").reverse().join("/")) : " · vĩnh viễn"}</p>
+    ${ok ? "" : '<p class="ps">Chưa kích hoạt tự động được. Đóng hộp này rồi bấm "Nhận mã đã mua".</p>'}</div>
+    <div class="row"><span class="grow"></span><button class="btn pri" data-act="close">Xong</button></div>`;
+}
 ACT.licClaim = async () => {
   const r = await run(() => api("POST", "/api/license/claim"));
   if (!r) return;
