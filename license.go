@@ -50,6 +50,7 @@ type licState struct {
 	TrialStart int64  `json:"trialStart"` // unix giây
 	LastSeen   int64  `json:"lastSeen"`
 	Key        string `json:"key,omitempty"`
+	Revoked    string `json:"revoked,omitempty"` // số bản quyền đã bị Nam Linh Group thu hồi (máy chủ báo)
 }
 
 type LicStatus struct {
@@ -132,6 +133,10 @@ func licCompute() LicStatus {
 			s.Note = err.Error()
 		case normMachine(l.Machine) != lic.machine:
 			s.Note = "Mã kích hoạt đã lưu cấp cho máy khác (" + normMachine(l.Machine) + "). Cần mã mới cho máy này."
+		case lic.st.Revoked != "" && lic.st.Revoked == l.ID:
+			s.License = l
+			s.State = "revoked"
+			return s
 		default:
 			s.License = l
 			today := now.Format("2006-01-02")
@@ -180,6 +185,7 @@ func licInit(dir string) {
 	if now > lic.st.LastSeen { lic.st.LastSeen = now }
 	lic.cur = licCompute()
 	licSave()
+	go licRevokeLoop()
 	go func() {
 		for range time.Tick(10 * time.Minute) {
 			lic.mu.Lock()
@@ -212,6 +218,7 @@ func licActivate(key string) (LicStatus, error) {
 	lic.st.Key = strings.Join(strings.Fields(key), "")
 	licSave()
 	lic.cur = licCompute()
+	go licRevokeCheck()
 	return lic.cur, nil
 }
 
@@ -234,6 +241,9 @@ func licGate(method, path string) string {
 }
 
 func licBlockedMsg(s LicStatus) string {
+	if s.State == "revoked" {
+		return "Bản quyền đã bị thu hồi. Dữ liệu vẫn xem và xuất được; liên hệ Nam Linh Group để được hỗ trợ (Cài đặt → Bản quyền)."
+	}
 	if s.State == "expired" && s.License != nil {
 		return "Bản quyền Digital Shop đã hết hạn ngày " + vnDateStr(s.License.Exp) + ". Dữ liệu vẫn xem và xuất được; muốn bán hàng tiếp, liên hệ Nam Linh Group để gia hạn (Cài đặt → Bản quyền)."
 	}

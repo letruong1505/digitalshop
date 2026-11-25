@@ -505,6 +505,7 @@ async function loadLic(st) {
   let head;
   if (st.state === "active") head = `<span class="pill green">Đã kích hoạt</span> Gói <b>Đầy đủ</b> · ${l.exp ? "hết hạn " + vn(l.exp) + " (còn " + st.daysLeft + " ngày)" : "vĩnh viễn"}<div class="ps">Mã ${esc(l.id)} · ${esc(l.shop)}</div>`;
   else if (st.state === "trial") head = `<span class="pill">Dùng thử</span> Còn <b>${st.daysLeft}</b> ngày, đầy đủ tính năng`;
+  else if (st.state === "revoked") head = `<span class="pill red">Đã thu hồi</span> Bản quyền ${esc(l.id)} đã bị thu hồi. Dữ liệu vẫn xem và xuất được; liên hệ Nam Linh Group (0968.646.853).`;
   else if (st.state === "expired") head = `<span class="pill red">Hết hạn</span> Bản quyền hết hạn ngày ${vn(l.exp)}. Dữ liệu vẫn xem và xuất được.`;
   else head = `<span class="pill red">Hết dùng thử</span> Dữ liệu vẫn xem và xuất được; muốn bán hàng tiếp hãy mua bản quyền.`;
   box.innerHTML = `<div>${head}</div>${st.note ? `<div class="ps" style="color:#b3261e">${esc(st.note)}</div>` : ""}

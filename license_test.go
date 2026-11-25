@@ -95,3 +95,46 @@ func TestLicenseClaim(t *testing.T) {
 	key = signLic(func() ed25519.PrivateKey { _, p, _ := ed25519.GenerateKey(rand.Reader); return p }(), License{V: 1, ID: "NL-X", Machine: "AAAA-BBBB-CCCC-DDDD", Shop: "F", Plan: "hddt", Iss: "x"})
 	if _, _, err := licClaim(); err == nil { t.Fatal("bad signature accepted") }
 }
+
+func TestLicenseRevoke(t *testing.T) {
+	priv := licTestSetup(t)
+	key := signLic(priv, License{V: 1, ID: "NL-261125-ABCD", Machine: "AAAA-BBBB-CCCC-DDDD", Shop: "G", Plan: "hddt", Iss: "x"})
+	mode := "ok" // ok | revoked | down | garbage
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/check" || r.URL.Query().Get("id") != "NL-261125-ABCD" { w.WriteHeader(404); return }
+		switch mode {
+		case "down":
+			w.WriteHeader(500)
+		case "garbage":
+			w.Write([]byte("<html>"))
+		default:
+			json.NewEncoder(w).Encode(map[string]any{"ok": true, "revoked": mode == "revoked"})
+		}
+	}))
+	defer ts.Close()
+	os.Setenv("DS_BUY_URL", ts.URL)
+	defer os.Unsetenv("DS_BUY_URL")
+	lic.st.Key = key
+	if s := licStatus(); s.State != "active" { t.Fatalf("start: %+v", s) }
+	for _, m := range []string{"down", "garbage"} {
+		mode = m
+		licRevokeCheck()
+		if s := licStatus(); s.State != "active" { t.Fatalf("%s must not revoke: %+v", m, s) }
+	}
+	mode = "revoked"
+	licRevokeCheck()
+	s := licStatus()
+	if s.State != "revoked" || s.CanWrite { t.Fatalf("revoked: %+v", s) }
+	if licGate("POST", "/api/invoices") == "" || licGate("GET", "/api/boot") != "" || licGate("POST", "/api/license/claim") != "" { t.Fatal("gate when revoked") }
+	// mất mạng không làm mất trạng thái thu hồi
+	mode = "down"
+	licRevokeCheck()
+	if s := licStatus(); s.State != "revoked" { t.Fatalf("offline must keep revoked: %+v", s) }
+	// khôi phục
+	mode = "ok"
+	licRevokeCheck()
+	if s := licStatus(); s.State != "active" || !s.CanWrite { t.Fatalf("restore: %+v", s) }
+	// mã mới (số khác) sau thu hồi không bị ảnh hưởng
+	lic.st.Revoked = "NL-OLD"
+	if s := licStatus(); s.State != "active" { t.Fatalf("other id: %+v", s) }
+}

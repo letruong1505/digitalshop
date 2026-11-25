@@ -1,0 +1,27 @@
+name = "namlinh-banquyen"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "namlinh-banquyen"
+database_id = "DAN-ID-D1-VAO-DAY"   # lấy từ lệnh: npx wrangler d1 create namlinh-banquyen
+
+[vars]
+# ---- Tài khoản nhận tiền (SePay đã liên kết) ----
+BANK_ACC = "0906027657"
+BANK_NAME = "LE VAN TRUONG"
+BANK_LABEL = "MB Bank"
+BANK_QR = "MBBank"              # tên ngân hàng theo qr.sepay.vn
+# ---- Gói cấp ra: "hddt" = đầy đủ tính năng (kể cả hóa đơn điện tử), "co-ban" = khóa phần hóa đơn ----
+PLAN = "hddt"
+# ---- Giá (đồng). SỬA TẠI ĐÂY rồi chạy lại: npx wrangler deploy ----
+# Khi thử bằng tiền thật, tạm đặt giá nhỏ (vd 2000) rồi nhớ đặt lại.
+PRICES = '{"shop":{"1y":1500000,"2y":2700000,"life":4500000},"fnb":{"1y":1500000,"2y":2700000,"life":4500000}}'
+# Thông tin liên hệ hiển thị trên trang mua (tuỳ chọn), vd "Zalo 09xx xxx xxx"
+CONTACT = ""
+
+# Bí mật (đặt bằng: npx wrangler secret put <TÊN>, KHÔNG ghi vào file này):
+#   SEPAY_API_KEY  - khóa API đặt cho webhook trên SePay
+#   LICENSE_SEED   - nội dung file khoa-bi-mat-NAMLINH.key (khóa ký bản quyền)
+#   ADMIN_TOKEN    - mật khẩu vào trang /admin

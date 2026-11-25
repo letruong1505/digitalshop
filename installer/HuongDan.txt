@@ -8,7 +8,7 @@ Phát triển bởi Nam Linh Group
      và tách đơn Zalo bằng AI (đều không bắt buộc).
 
 2. CÀI ĐẶT
-   - Chạy file TapHoaX-CaiDat-3.1.0.exe, bấm "Yes" khi Windows hỏi quyền quản trị.
+   - Chạy file TapHoaX-CaiDat-3.1.1.exe, bấm "Yes" khi Windows hỏi quyền quản trị.
    - Nếu Windows báo "Windows protected your PC": bấm "More info" → "Run anyway".
    - Đọc Điều khoản sử dụng, tích "Tôi đã đọc và đồng ý" rồi bấm Tiếp.
    - Chọn: biểu tượng trên màn hình, tự mở khi bật máy (nên chọn cho máy tính tiền).
@@ -100,3 +100,5 @@ BẢN QUYỀN VÀ CẬP NHẬT (từ bản 3.1)
    - Hết hạn dùng thử/bản quyền: vẫn xem và xuất dữ liệu, không bán thêm được cho đến khi kích hoạt.
    - Cài đặt → Cập nhật phần mềm: bấm "Kiểm tra bản mới" rồi "Cập nhật ngay" (chỉ Windows, dữ liệu giữ nguyên).
    - In hóa đơn nhiệt: Cài đặt → In hóa đơn → "Số dòng trống cuối phiếu" (mặc định 8) để máy cắt đúng chỗ.
+   - Thu hồi bản quyền (hoàn tiền, chia sẻ mã): Nam Linh Group thu hồi trên trang quản trị; máy khách khi có internet
+     sẽ chuyển sang chế độ chỉ xem/xuất dữ liệu trong vòng 12 giờ. Máy mất mạng vẫn bán bình thường.

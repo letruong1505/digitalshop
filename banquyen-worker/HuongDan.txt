@@ -1,0 +1,102 @@
+MUA BẢN QUYỀN ONLINE (Digital Shop / Digital FnB) — HƯỚNG DẪN CÀI ĐẶT
+======================================================================
+Khách bấm "Mua bản quyền" trong phần mềm -> chọn 1 năm / 2 năm / vĩnh viễn -> quét QR (MB Bank 0906027657)
+-> SePay báo tiền về -> Worker tự ký mã kích hoạt -> khách bấm "Nhận mã đã mua" trong phần mềm là xong.
+
+Địa chỉ sau khi cài:  https://namlinh-banquyen.namlinh.workers.dev
+  /mua?sp=fnb  (hoặc sp=shop)   trang khách mua
+  /admin                        trang quản trị của bạn (xem đơn, cấp tay)
+  /sepay                        địa chỉ webhook đưa cho SePay
+GIỮ NGUYÊN tên Worker "namlinh-banquyen": địa chỉ này đã được ghi sẵn trong phần mềm.
+
+PHẦN A. CÀI ĐẶT MỘT LẦN
+-----------------------
+Cần: Node.js LTS (bạn đã có), đã đăng nhập wrangler (npx wrangler login).
+Giải nén file zip này vào D:\banquyen-worker, mở cmd tại thư mục đó (gõ cmd vào thanh địa chỉ rồi Enter).
+
+1) Cài công cụ:
+      npm install
+
+2) Tạo cơ sở dữ liệu D1:
+      npx wrangler d1 create namlinh-banquyen
+   Kết quả có dòng  database_id = "xxxxxxxx-xxxx-..."
+   Mở file wrangler.toml bằng Notepad, thay chữ DAN-ID-D1-VAO-DAY bằng đúng id đó, lưu lại.
+
+3) Tạo bảng:
+      npx wrangler d1 execute namlinh-banquyen --remote --file=schema.sql
+
+4) Kiểm tra giá trong wrangler.toml, dòng PRICES (đồng):
+      1 năm 1.500.000 · 2 năm 2.700.000 · vĩnh viễn 4.500.000  (cùng giá cho Shop và FnB)
+   Đây là giá mình lấy theo bảng giá gói Cơ bản đã chọn trước đó. SỬA nếu bạn muốn khác.
+   Dòng PLAN = "hddt" nghĩa là mọi bản quyền bán ra đều mở đủ tính năng, kể cả hóa đơn điện tử.
+   Muốn khóa phần hóa đơn thì đổi thành PLAN = "co-ban".
+
+5) Đặt 3 mã bí mật. Mỗi lệnh sẽ hỏi, bạn gõ/dán giá trị rồi Enter (giá trị không hiện ra):
+      npx wrangler secret put SEPAY_API_KEY
+         -> chuỗi bạn tự đặt, dài ít nhất 24 ký tự, chỉ gồm chữ và số. GHI LẠI để dán vào SePay ở bước 8.
+      npx wrangler secret put LICENSE_SEED
+         -> mở file khoa-bi-mat-NAMLINH.key bằng Notepad, chép toàn bộ nội dung (1 dòng), dán vào.
+      npx wrangler secret put ADMIN_TOKEN
+         -> mật khẩu vào trang /admin, tự đặt, dài và khó đoán.
+   Tuyệt đối không gửi 3 giá trị này vào chat hay ghi vào file.
+
+6) Đưa lên mạng:
+      npx wrangler deploy
+
+7) Kiểm tra: mở https://namlinh-banquyen.namlinh.workers.dev/admin , nhập ADMIN_TOKEN.
+   Dòng "Khóa công khai của Worker" PHẢI là:  liHb941iLYtHy190MziQp1H4xUOG/JeGXEBWrK+dqk0=
+   Nếu khác hoặc báo LỖI: LICENSE_SEED dán sai -> chạy lại lệnh đặt LICENSE_SEED rồi deploy lại.
+
+8) Khai báo webhook trên SePay (my.sepay.vn -> Tích hợp WebHooks -> Thêm webhooks):
+      - Sự kiện: Có tiền vào
+      - Tài khoản ngân hàng: MB 0906027657
+      - Gọi đến URL: https://namlinh-banquyen.namlinh.workers.dev/sepay
+      - Kiểu chứng thực: API Key, dán đúng chuỗi SEPAY_API_KEY ở bước 5
+      - "Bỏ qua nếu không có code thanh toán": KHÔNG tích
+   Webhook cũ của app Educenter giữ nguyên. Mỗi giao dịch SePay gửi cho cả hai; mỗi bên chỉ xử lý
+   giao dịch có mã đơn của mình (mã bắt đầu bằng NLBQ), còn lại bỏ qua.
+
+PHẦN B. THỬ BẰNG TIỀN THẬT TRƯỚC KHI BÁN
+----------------------------------------
+1) Tạm đặt giá thử: trong wrangler.toml đổi "1y":1500000 của fnb thành "1y":2000, chạy: npx wrangler deploy
+2) Mở https://namlinh-banquyen.namlinh.workers.dev/mua?sp=fnb , nhập mã máy (lấy trong phần mềm, Cài đặt -> Bản quyền),
+   chọn 1 năm, điền thông tin, quét QR chuyển 2.000đ. Chỉ vài chục giây sau trang hiện mã kích hoạt.
+3) Vào /admin: đơn phải ở trạng thái "Đã cấp". Trong phần mềm: bấm "Nhận mã đã mua" (cần bản phần mềm mới có nút này).
+4) Đặt lại giá đúng, deploy lại. Nhớ làm bước này.
+Nếu trang không tự hiện mã: xem /admin mục "Giao dịch cần xem". Có thể là chuyển sai nội dung hoặc thiếu tiền;
+bấm "Cấp tay" trên đơn tương ứng sau khi bạn tự kiểm tra tiền đã về.
+
+PHẦN C. VẬN HÀNH
+----------------
+- /admin: danh sách đơn, trạng thái, mã máy, số điện thoại; nút "Chép mã" gửi lại mã cho khách; "Cấp tay" khi cần
+  (vd khách chuyển sai nội dung nhưng bạn đã thấy tiền về).
+- Chuyển thiếu tiền: đơn giữ nguyên chờ, ghi chú "Chuyển thiếu". Khách chuyển bù đúng nội dung hoặc bạn xử lý tay.
+  Chuyển dư: vẫn cấp mã, ghi chú số dư để bạn hoàn lại nếu muốn.
+- Gia hạn: mua thêm trước khi hết hạn thì thời gian được cộng dồn. Đã mua vĩnh viễn thì không bán thêm cho máy đó.
+- Khách cài lại phần mềm hoặc đổi máy: mã máy mới nên phải mua/cấp mã mới (bạn dùng "Cấp tay" hoặc công cụ CapBanQuyen).
+- Đổi giá: sửa PRICES trong wrangler.toml rồi npx wrangler deploy. Đơn đã tạo giữ giá cũ.
+
+SỬA MÃ CŨ KHI TỪNG KÝ SAI KHÓA
+------------------------------
+Nếu Worker từng chạy với LICENSE_SEED sai, các đơn đã thanh toán lúc đó lưu mã ký sai: máy nhận mã đó sẽ báo
+"Mã kích hoạt không hợp lệ", còn máy mua sau khi sửa khóa thì nhận bình thường.
+Sau khi LICENSE_SEED đã đúng (kiểm tra dòng khóa công khai ở /admin), deploy bản này rồi vào /admin bấm
+"Ký lại mã cũ bằng khóa hiện tại". Nội dung mã giữ nguyên, chỉ ký lại; khách bấm "Nhận mã đã mua" lần nữa là được.
+
+AN TOÀN
+-------
+- Khóa ký bản quyền nằm trong secret của Cloudflare (không ai đọc ngược ra được, kể cả bạn), nhưng ai chiếm được
+  tài khoản Cloudflare thì cấp được mã. Giữ bật xác thực 2 lớp, không chia sẻ tài khoản.
+- Khóa này giống khóa trong công cụ CapBanQuyen, nên mã do Worker cấp và mã bạn cấp tay đều dùng được.
+- Nếu nghi lộ ADMIN_TOKEN hoặc SEPAY_API_KEY: chạy lại lệnh secret put để đổi, rồi deploy lại (SePay cũng đổi theo).
+
+KIỂM THỬ CỤC BỘ (tùy chọn)
+--------------------------
+test\e2e.sh chạy bằng bash khi bật npx wrangler dev --local --port 8799 với file .dev.vars chứa khóa THỬ
+(không dùng khóa thật). Không cần làm nếu bạn không sửa mã.
+
+THU HỒI BẢN QUYỀN (bản mới)
+- Trang /admin → dòng đơn đã cấp có nút "Thu hồi" (nhập lý do). Mã cấp tay: nút "Thu hồi theo số bản quyền…" (nhập NL-yymmdd-XXXX, xem trong mã hoặc phần mềm).
+- Đơn bị thu hồi không "Nhận mã đã mua" lại được. "Khôi phục" để hoàn tác (nút trên dòng đơn, hoặc "Xem danh sách thu hồi").
+- Phần mềm từ bản 3.1.1 hỏi máy chủ mỗi 12 giờ và khi khởi động; bị thu hồi thì chỉ xem/xuất dữ liệu. Mất mạng thì giữ trạng thái cũ.
+- Triển khai: chỉ cần npx wrangler deploy (bảng thu hồi tự tạo). Nhớ điền database_id thật trong wrangler.toml.

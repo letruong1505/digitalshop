@@ -48,3 +48,47 @@ func licClaim() (LicStatus, bool, error) {
 	if err != nil { return LicStatus{}, false, err }
 	return st, true, nil
 }
+
+// licRevokeCheck hỏi máy chủ xem bản quyền đang dùng có bị thu hồi không. Chỉ khi máy chủ trả lời rõ ràng
+// mới đổi trạng thái; mất mạng hoặc máy chủ lỗi thì giữ nguyên (tiệm mất internet vẫn bán bình thường).
+func licRevokeCheck() {
+	lic.mu.Lock()
+	key := lic.st.Key
+	lic.mu.Unlock()
+	if key == "" { return }
+	l, err := parseLicense(key)
+	if err != nil || l.ID == "" { return }
+	cl := &http.Client{Timeout: 15 * time.Second}
+	resp, err := cl.Get(buyBase() + "/api/check?id=" + url.QueryEscape(l.ID))
+	if err != nil { return }
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 { return }
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<12))
+	var r struct {
+		OK      bool `json:"ok"`
+		Revoked bool `json:"revoked"`
+	}
+	if json.Unmarshal(b, &r) != nil || !r.OK { return }
+	lic.mu.Lock()
+	defer lic.mu.Unlock()
+	if lic.st.Key != key { return }
+	switch {
+	case r.Revoked && lic.st.Revoked != l.ID:
+		lic.st.Revoked = l.ID
+		licSave()
+		say("Bản quyền " + l.ID + " đã bị thu hồi")
+	case !r.Revoked && lic.st.Revoked == l.ID:
+		lic.st.Revoked = ""
+		licSave()
+		say("Bản quyền " + l.ID + " đã được khôi phục")
+	}
+	lic.cur = licCompute()
+}
+
+func licRevokeLoop() {
+	time.Sleep(30 * time.Second)
+	for {
+		licRevokeCheck()
+		time.Sleep(12 * time.Hour)
+	}
+}

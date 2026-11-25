@@ -491,6 +491,7 @@ function licBar() {
   const old = $("#licBar"); if (old) old.remove();
   let msg = "", bad = false;
   if (l.state === "trial-over") { msg = "Đã hết thời gian dùng thử. Dữ liệu vẫn xem và xuất được; muốn bán hàng tiếp, hãy mua bản quyền."; bad = true; }
+  else if (l.state === "revoked") { msg = "Bản quyền đã bị thu hồi. Dữ liệu vẫn xem và xuất được; liên hệ Nam Linh Group để được hỗ trợ."; bad = true; }
   else if (l.state === "expired") { msg = "Bản quyền đã hết hạn. Gia hạn để tiếp tục bán hàng."; bad = true; }
   else if (l.state === "trial" && l.daysLeft <= 7) msg = "Dùng thử còn " + l.daysLeft + " ngày.";
   else if (l.state === "active" && l.license && l.license.exp && l.daysLeft <= 15) msg = "Bản quyền còn " + l.daysLeft + " ngày, gia hạn trước khi hết hạn.";
