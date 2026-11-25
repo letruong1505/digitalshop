@@ -31,7 +31,7 @@ Mỗi Bản quyền dùng cho 01 Cửa hàng, cài trên 01 Máy chủ, không g
 
 3.1. Nhà cung cấp cấp cho Bên sử dụng quyền sử dụng Phần mềm không độc quyền, không chuyển nhượng, để quản lý hoạt động bán hàng của chính Bên sử dụng.
 
-3.2. Thời hạn Bản quyền theo gói ghi trong Phụ lục: [sử dụng lâu dài với Phiên bản đã mua] hoặc [theo năm].
+3.2. Thời hạn Bản quyền theo gói ghi trong Phụ lục: 1 năm, 2 năm hoặc vĩnh viễn tùy gói Bên sử dụng chọn khi mua.
 
 3.3. Bên sử dụng được sao chép Phần mềm để sao lưu, và được chuyển sang Máy chủ mới khi thay máy, với điều kiện ngừng dùng trên máy cũ.
 
@@ -67,7 +67,7 @@ Phí Bản quyền theo Phụ lục hoặc báo giá, thanh toán trước khi b
 
 6. CẬP NHẬT, HỖ TRỢ VÀ BẢO HÀNH
 
-Bên sử dụng được hỗ trợ miễn phí [12] tháng và bảo hành [30] ngày kể từ ngày bàn giao.
+Bên sử dụng được hỗ trợ miễn phí trong thời hạn Bản quyền và bảo hành [30] ngày kể từ ngày bàn giao.
 
 6.1. Dịch vụ hỗ trợ qua điện thoại hoặc Zalo theo số và giờ ghi trong Phụ lục. Yêu cầu ngoài giờ được xử lý trong ngày làm việc kế tiếp.
 
@@ -161,17 +161,15 @@ Tổng trách nhiệm bồi thường của Nhà cung cấp không vượt quá 
 
 PHỤ LỤC: GÓI BẢN QUYỀN VÀ LIÊN HỆ
 
-Các ô trong ngoặc vuông do Nhà cung cấp điền trước khi phát hành.
-
-- Bản quyền Digital Shop: 01 Cửa hàng, 01 Máy chủ, không giới hạn điện thoại và nhân viên, hỗ trợ [12] tháng. Phí: [điền] VNĐ. Không chịu thuế GTGT.
-- Cài đặt tại Cửa hàng (tùy chọn): cài Phần mềm, nhập dữ liệu từ phần mềm cũ, kết nối máy in và máy quét, hướng dẫn tại chỗ. Phí: [điền] VNĐ. Không chịu thuế GTGT (dịch vụ phần mềm).
-- Gia hạn hỗ trợ: hỗ trợ và bản sửa lỗi thêm 12 tháng. Phí: [điền] VNĐ/năm. Không chịu thuế GTGT.
+- Bản quyền Digital Shop: 01 Cửa hàng, 01 Máy chủ, không giới hạn điện thoại và nhân viên, gồm cập nhật và hỗ trợ trong thời hạn Bản quyền. Giá: 1 năm 1.500.000 VNĐ; 2 năm 2.700.000 VNĐ; vĩnh viễn 4.500.000 VNĐ (mua một lần). Không chịu thuế GTGT.
+- Cài đặt (tùy chọn): cài Phần mềm, nhập dữ liệu từ phần mềm cũ, kết nối máy in và máy quét, hướng dẫn. Thực hiện online hoặc tại Cửa hàng tùy vị trí; phí báo trước khi thực hiện. Không chịu thuế GTGT (dịch vụ phần mềm).
+- Gia hạn Bản quyền: gia hạn trước khi hết hạn được cộng dồn vào thời hạn còn lại, theo giá các gói 1 năm hoặc 2 năm nêu trên. Không chịu thuế GTGT.
 - Thiết bị (nếu mua kèm): máy quét mã vạch, máy in nhiệt, máy tính. Phí: theo báo giá. Thuế GTGT theo thuế suất của thiết bị.
 
 Liên hệ hỗ trợ
 - Điện thoại / Zalo: 0968.646.853
-- Email: [email]
-- Giờ hỗ trợ: [8:00–21:00 hằng ngày]
+- Email: namlinh.educenter@gmail.com
+- Giờ hỗ trợ: 8:00–18:00
 - Địa chỉ: Xóm Liên Minh, xã Hùng Châu, tỉnh Nghệ An
 
 Căn cứ pháp lý đã tham chiếu: Luật Thuế giá trị gia tăng số 48/2024/QH15; Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15; Luật Sở hữu trí tuệ; quy định hiện hành về hóa đơn, chứng từ.
