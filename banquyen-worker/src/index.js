@@ -255,7 +255,8 @@ async function check(url, env) {
   if (!/^NL-[A-Z0-9-]{3,30}$/.test(id)) return fail("Thiếu số bản quyền");
   await ensureRevoked(env);
   const r = await env.DB.prepare("SELECT at FROM revoked WHERE license_id=?1").bind(id).first();
-  return json({ ok: true, revoked: !!r });
+  // Báo trước 1 ngày: máy khách hiện thông báo ngay, đến mốc "effective" mới chuyển sang chỉ xem/xuất dữ liệu.
+  return json({ ok: true, revoked: !!r, at: r ? r.at : 0, effective: r ? r.at + 24 * 3600 * 1000 : 0 });
 }
 
 // ---------- quản trị ----------

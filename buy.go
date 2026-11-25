@@ -65,8 +65,9 @@ func licRevokeCheck() {
 	if resp.StatusCode != 200 { return }
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<12))
 	var r struct {
-		OK      bool `json:"ok"`
-		Revoked bool `json:"revoked"`
+		OK        bool  `json:"ok"`
+		Revoked   bool  `json:"revoked"`
+		Effective int64 `json:"effective"` // mili giây; trống thì tính 24 giờ kể từ lúc nhận tin
 	}
 	if json.Unmarshal(b, &r) != nil || !r.OK { return }
 	lic.mu.Lock()
@@ -74,11 +75,13 @@ func licRevokeCheck() {
 	if lic.st.Key != key { return }
 	switch {
 	case r.Revoked && lic.st.Revoked != l.ID:
-		lic.st.Revoked = l.ID
+		eff := r.Effective / 1000
+		if eff <= 0 { eff = time.Now().Add(24 * time.Hour).Unix() }
+		lic.st.Revoked, lic.st.RevokedEff = l.ID, eff
 		licSave()
-		say("Bản quyền " + l.ID + " đã bị thu hồi")
+		say("Bản quyền " + l.ID + " đã bị thu hồi, chuyển sang chỉ xem lúc " + time.Unix(eff, 0).Format("02/01/2006 15:04"))
 	case !r.Revoked && lic.st.Revoked == l.ID:
-		lic.st.Revoked = ""
+		lic.st.Revoked, lic.st.RevokedEff = "", 0
 		licSave()
 		say("Bản quyền " + l.ID + " đã được khôi phục")
 	}

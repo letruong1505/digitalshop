@@ -101,4 +101,5 @@ BẢN QUYỀN VÀ CẬP NHẬT (từ bản 3.1)
    - Cài đặt → Cập nhật phần mềm: bấm "Kiểm tra bản mới" rồi "Cập nhật ngay" (chỉ Windows, dữ liệu giữ nguyên).
    - In hóa đơn nhiệt: Cài đặt → In hóa đơn → "Số dòng trống cuối phiếu" (mặc định 8) để máy cắt đúng chỗ.
    - Thu hồi bản quyền (hoàn tiền, chia sẻ mã): Nam Linh Group thu hồi trên trang quản trị; máy khách khi có internet
-     sẽ chuyển sang chế độ chỉ xem/xuất dữ liệu trong vòng 12 giờ. Máy mất mạng vẫn bán bình thường.
+     sẽ hiện thông báo kèm giờ ngày cụ thể (báo trước 1 ngày), đến mốc đó mới chuyển sang chế độ chỉ xem/xuất dữ liệu.
+     Phần mềm kiểm tra mỗi 12 giờ; máy mất mạng vẫn bán bình thường.

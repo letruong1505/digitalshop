@@ -100,6 +100,7 @@ func TestLicenseRevoke(t *testing.T) {
 	priv := licTestSetup(t)
 	key := signLic(priv, License{V: 1, ID: "NL-261125-ABCD", Machine: "AAAA-BBBB-CCCC-DDDD", Shop: "G", Plan: "hddt", Iss: "x"})
 	mode := "ok" // ok | revoked | down | garbage
+	effAt := time.Now().Add(24*time.Hour).UnixMilli()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/check" || r.URL.Query().Get("id") != "NL-261125-ABCD" { w.WriteHeader(404); return }
 		switch mode {
@@ -108,7 +109,9 @@ func TestLicenseRevoke(t *testing.T) {
 		case "garbage":
 			w.Write([]byte("<html>"))
 		default:
-			json.NewEncoder(w).Encode(map[string]any{"ok": true, "revoked": mode == "revoked"})
+			eff := int64(0)
+			if mode == "revoked" { eff = effAt }
+			json.NewEncoder(w).Encode(map[string]any{"ok": true, "revoked": mode == "revoked", "effective": eff})
 		}
 	}))
 	defer ts.Close()
@@ -121,9 +124,15 @@ func TestLicenseRevoke(t *testing.T) {
 		licRevokeCheck()
 		if s := licStatus(); s.State != "active" { t.Fatalf("%s must not revoke: %+v", m, s) }
 	}
+	// vừa thu hồi: báo trước, vẫn bán được đến mốc
 	mode = "revoked"
 	licRevokeCheck()
 	s := licStatus()
+	if s.State != "active" || !s.CanWrite || s.RevokeOn == "" { t.Fatalf("grace: %+v", s) }
+	if licGate("POST", "/api/invoices") != "" { t.Fatal("grace must allow writes") }
+	// qua mốc: chuyển sang chỉ xem/xuất
+	lic.st.RevokedEff = time.Now().Add(-time.Minute).Unix()
+	s = licStatus()
 	if s.State != "revoked" || s.CanWrite { t.Fatalf("revoked: %+v", s) }
 	if licGate("POST", "/api/invoices") == "" || licGate("GET", "/api/boot") != "" || licGate("POST", "/api/license/claim") != "" { t.Fatal("gate when revoked") }
 	// mất mạng không làm mất trạng thái thu hồi

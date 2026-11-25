@@ -50,7 +50,8 @@ type licState struct {
 	TrialStart int64  `json:"trialStart"` // unix giây
 	LastSeen   int64  `json:"lastSeen"`
 	Key        string `json:"key,omitempty"`
-	Revoked    string `json:"revoked,omitempty"` // số bản quyền đã bị Nam Linh Group thu hồi (máy chủ báo)
+	Revoked    string `json:"revoked,omitempty"`    // số bản quyền đã bị Nam Linh Group thu hồi (máy chủ báo)
+	RevokedEff int64  `json:"revokedEff,omitempty"` // thời điểm (unix giây) bắt đầu chuyển sang chỉ xem/xuất; báo trước 1 ngày
 }
 
 type LicStatus struct {
@@ -62,6 +63,7 @@ type LicStatus struct {
 	CanEinv  bool     `json:"canEinv"`
 	License  *License `json:"license,omitempty"`
 	Note     string   `json:"note,omitempty"` // vd mã đã lưu không hợp lệ
+	RevokeOn string   `json:"revokeOn,omitempty"` // đã bị thu hồi nhưng còn dùng được đến mốc này (RFC3339)
 	BuyURL   string   `json:"buyUrl,omitempty"`
 }
 
@@ -133,12 +135,13 @@ func licCompute() LicStatus {
 			s.Note = err.Error()
 		case normMachine(l.Machine) != lic.machine:
 			s.Note = "Mã kích hoạt đã lưu cấp cho máy khác (" + normMachine(l.Machine) + "). Cần mã mới cho máy này."
-		case lic.st.Revoked != "" && lic.st.Revoked == l.ID:
+		case lic.st.Revoked != "" && lic.st.Revoked == l.ID && now.Unix() >= lic.st.RevokedEff:
 			s.License = l
 			s.State = "revoked"
 			return s
 		default:
 			s.License = l
+			if lic.st.Revoked == l.ID { s.RevokeOn = time.Unix(lic.st.RevokedEff, 0).Format(time.RFC3339) }
 			today := now.Format("2006-01-02")
 			if l.Exp == "" || today <= l.Exp {
 				s.State, s.CanWrite, s.CanEinv = "active", true, true

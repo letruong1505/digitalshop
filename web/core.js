@@ -492,6 +492,7 @@ function licBar() {
   let msg = "", bad = false;
   if (l.state === "trial-over") { msg = "Đã hết thời gian dùng thử. Dữ liệu vẫn xem và xuất được; muốn bán hàng tiếp, hãy mua bản quyền."; bad = true; }
   else if (l.state === "revoked") { msg = "Bản quyền đã bị thu hồi. Dữ liệu vẫn xem và xuất được; liên hệ Nam Linh Group để được hỗ trợ."; bad = true; }
+  else if (l.revokeOn) msg = "Bản quyền đã bị thu hồi. Từ " + fmtRev(l.revokeOn) + " phần mềm sẽ chuyển sang chế độ chỉ xem và xuất dữ liệu. Liên hệ Nam Linh Group (0968.646.853) để được hỗ trợ.", bad = true;
   else if (l.state === "expired") { msg = "Bản quyền đã hết hạn. Gia hạn để tiếp tục bán hàng."; bad = true; }
   else if (l.state === "trial" && l.daysLeft <= 7) msg = "Dùng thử còn " + l.daysLeft + " ngày.";
   else if (l.state === "active" && l.license && l.license.exp && l.daysLeft <= 15) msg = "Bản quyền còn " + l.daysLeft + " ngày, gia hạn trước khi hết hạn.";
@@ -515,4 +516,9 @@ async function autoUpdCheck() {
     store.set("updAt", Date.now());
     if (r && r.newer) toast("Có bản mới " + r.latest + ". Vào Cài đặt → Cập nhật phần mềm để cài.");
   } catch (e) {}
+}
+
+function fmtRev(iso) {
+  const d = new Date(iso), p = n => String(n).padStart(2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes()) + " ngày " + p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear();
 }
