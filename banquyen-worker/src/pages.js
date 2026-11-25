@@ -76,6 +76,9 @@ textarea{width:100%;min-height:96px;padding:10px;border:1px solid var(--line);bo
       <input id="email" type="email" autocomplete="email" maxlength="100">
       <label for="mst">Mã số thuế (không bắt buộc)</label>
       <input id="mst" type="text" inputmode="numeric" maxlength="14">
+      <label for="partner">Mã đối tác (nếu có)</label>
+      <div style="display:flex;gap:8px"><input id="partner" class="mono" type="text" autocomplete="off" spellcheck="false" maxlength="24" style="flex:1"><button class="btn ghost" id="applyPartner" type="button" style="width:auto;padding:0 16px">Áp dụng</button></div>
+      <p class="hint" id="partnerMsg"></p>
       <label class="chk"><input id="agree" type="checkbox"><span>Tôi đã đọc và đồng ý điều khoản sử dụng bản quyền của Nam Linh Group.</span></label>
       <details><summary>Xem điều khoản</summary>
         <ol>
@@ -198,7 +201,8 @@ textarea{width:100%;min-height:96px;padding:10px;border:1px solid var(--line);bo
     $("err").textContent = "";
     var body = {
       sp: $("sp").value, plan: sel.plan, machine: $("machine").value, shop: $("shop").value,
-      phone: $("phone").value, email: $("email").value, mst: $("mst").value, agree: $("agree").checked
+      phone: $("phone").value, email: $("email").value, mst: $("mst").value, agree: $("agree").checked,
+      partner: $("partner").value
     };
     $("go").disabled = true;
     fetch("/api/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
@@ -211,6 +215,20 @@ textarea{width:100%;min-height:96px;padding:10px;border:1px solid var(--line);bo
         fillPay(o);
       }).catch(function () { $("go").disabled = false; $("err").textContent = "Không kết nối được, thử lại"; });
   }
+
+  function applyPartner() {
+    var c = $("partner").value.trim(), m = $("partnerMsg");
+    m.textContent = ""; m.style.color = "";
+    if (!c) return;
+    fetch("/api/partner?code=" + encodeURIComponent(c) + "&sp=" + encodeURIComponent($("sp").value) + "&plan=" + encodeURIComponent(sel.plan))
+      .then(function (r) { return r.json(); })
+      .then(function (o) {
+        if (o.error) { m.textContent = o.error; m.style.color = "#c0392b"; return; }
+        m.textContent = "Giảm " + o.percent + "%: " + money(o.list) + " còn " + money(o.amount);
+        m.style.color = "#1a7f4b";
+      }).catch(function () { m.textContent = "Không kiểm tra được mã, thử lại"; });
+  }
+  $("applyPartner").onclick = applyPartner;
 
   document.addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("[data-cp]") : null;
@@ -286,7 +304,12 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
     <div class="card" id="st"></div>
     <div class="card">
       <div class="row" style="margin-bottom:8px"><b>Đơn hàng</b><button class="l" id="ref" type="button">Tải lại</button><button class="l" id="rs" type="button">Ký lại mã cũ bằng khóa hiện tại</button><button class="l" id="rv" type="button">Thu hồi theo số bản quyền…</button><button class="l" id="rl" type="button">Xem danh sách thu hồi</button></div>
-      <table><thead><tr><th>Tạo lúc</th><th>Mã đơn</th><th>Sản phẩm</th><th>Gói</th><th>Số tiền</th><th>Cửa hàng</th><th>Điện thoại</th><th>Mã máy</th><th>Trạng thái</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+      <table><thead><tr><th>Tạo lúc</th><th>Mã đơn</th><th>Sản phẩm</th><th>Gói</th><th>Số tiền</th><th>Đối tác</th><th>Cửa hàng</th><th>Điện thoại</th><th>Mã máy</th><th>Trạng thái</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><b>Mã đối tác &amp; % giảm giá</b></div>
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px"><input id="pc" placeholder="Mã (vd DAILY01)" style="width:140px"><input id="pn" placeholder="Tên đối tác" style="width:180px"><input id="pp" type="number" min="1" max="90" placeholder="% giảm" style="width:90px"><button class="l" id="padd" type="button">Lưu / cập nhật</button></div>
+      <table><thead><tr><th>Mã</th><th>Đối tác</th><th>Giảm</th><th>Đơn đã cấp</th><th>Doanh thu</th><th>Trạng thái</th><th></th></tr></thead><tbody id="ptn"></tbody></table>
     </div>
     <div class="card"><b>Giao dịch cần xem (không khớp đơn, chuyển thiếu, lỗi)</b><table><thead><tr><th>Lúc</th><th>Số tiền</th><th>Nội dung</th><th>Đơn</th><th>Kết quả</th></tr></thead><tbody id="odd"></tbody></table></div>
   </div>
@@ -319,7 +342,7 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
       j.orders.forEach(function (o) {
         var tr = document.createElement("tr");
         cell(tr, dt(o.created_at)); cell(tr, o.code, "mono"); cell(tr, SP[o.product] || o.product); cell(tr, PL[o.plan] || o.plan);
-        cell(tr, money(o.amount)); cell(tr, o.shop); cell(tr, o.phone); cell(tr, o.machine, "mono");
+        cell(tr, money(o.amount) + (o.discount > 0 ? " (giảm " + money(o.discount) + ")" : "")); cell(tr, o.partner || ""); cell(tr, o.shop); cell(tr, o.phone); cell(tr, o.machine, "mono");
         var t = cell(tr, o.status === "revoked" ? "Đã thu hồi" : o.status === "paid" ? "Đã cấp " + dt(o.paid_at) + (o.exp ? " · hết hạn " + o.exp : " · vĩnh viễn") : "Chờ thanh toán", o.status === "paid" ? "paid" : o.status === "revoked" ? "bad" : "pending");
         if (o.note) { var n = document.createElement("div"); n.className = "bad"; n.textContent = o.note; t.appendChild(n); }
         var a = cell(tr, "");
@@ -353,6 +376,7 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
         }
         rows.appendChild(tr);
       });
+      loadPartners();
       var odd = $("odd"); odd.textContent = "";
       j.odd.forEach(function (x) {
         var tr = document.createElement("tr");
@@ -361,6 +385,26 @@ th{color:var(--mute);font-weight:600;white-space:nowrap}
       });
     }).catch(function (e) { $("msg").textContent = e.message; $("login").classList.remove("hide"); $("main").classList.add("hide"); });
   }
+  function loadPartners() {
+    api("/admin/api/partners").then(function (r) {
+      var b = $("ptn"); b.textContent = "";
+      r.list.forEach(function (p) {
+        var tr = document.createElement("tr");
+        cell(tr, p.code, "mono"); cell(tr, p.name); cell(tr, p.percent + "%"); cell(tr, p.paid_orders); cell(tr, money(p.revenue) + " đ");
+        cell(tr, p.active ? "Đang áp dụng" : "Đã tắt", p.active ? "paid" : "bad");
+        var a = cell(tr, ""), t = document.createElement("button"); t.className = "l"; t.type = "button"; t.textContent = p.active ? "Tắt" : "Bật lại";
+        t.onclick = function () { savePartner({ code: p.code, name: p.name, percent: p.percent, active: !p.active }); };
+        a.appendChild(t); b.appendChild(tr);
+      });
+    }).catch(function () {});
+  }
+  function savePartner(b) {
+    api("/admin/api/partner", { method: "POST", body: JSON.stringify(b) }).then(function () { loadPartners(); }).catch(function (e) { alert(e.message); });
+  }
+  $("padd").onclick = function () {
+    savePartner({ code: $("pc").value, name: $("pn").value, percent: Number($("pp").value), active: true });
+    $("pc").value = ""; $("pn").value = ""; $("pp").value = "";
+  };
   $("in").onclick = function () { tok = $("tk").value; try { sessionStorage.setItem("nlbq-admin", tok); } catch (e) {} load(); };
   $("tk").onkeydown = function (e) { if (e.key === "Enter") $("in").onclick(); };
   $("ref").onclick = load;

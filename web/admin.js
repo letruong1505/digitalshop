@@ -510,7 +510,7 @@ async function loadLic(st) {
   else if (st.state === "expired") head = `<span class="pill red">Hết hạn</span> Bản quyền hết hạn ngày ${vn(l.exp)}. Dữ liệu vẫn xem và xuất được.`;
   else head = `<span class="pill red">Hết dùng thử</span> Dữ liệu vẫn xem và xuất được; muốn bán hàng tiếp hãy mua bản quyền.`;
   box.innerHTML = `<div>${head}</div>${st.note ? `<div class="ps" style="color:#b3261e">${esc(st.note)}</div>` : ""}
-    <div class="row" style="flex-wrap:wrap;gap:8px"><a class="btn pri" href="${esc(st.buyUrl || "#")}" target="_blank" rel="noopener" data-act="licBuy">${st.state === "active" ? "Gia hạn bản quyền" : "Mua bản quyền"}</a>
+    <div class="row" style="flex-wrap:wrap;gap:8px">${st.state === "active" && l && !l.exp ? "" : `<a class="btn pri" href="${esc(st.buyUrl || "#")}" target="_blank" rel="noopener" data-act="licBuy">${st.state === "active" ? "Gia hạn bản quyền" : "Mua bản quyền"}</a>`}
       <button class="btn" data-act="licClaim">Nhận mã đã mua</button>${l ? `<button class="btn" data-act="licCheck">Kiểm tra trạng thái ngay</button>` : ""}</div>
     <div class="ps">Mua xong và chuyển khoản, phần mềm tự nhận mã và kích hoạt (chờ khoảng 1 phút). Nếu chưa thấy, bấm “Nhận mã đã mua”.</div>
     <div class="field"><label for="lic-key">Hoặc dán mã kích hoạt (bắt đầu bằng DS1.)</label><div class="row"><input id="lic-key" class="in num grow" autocomplete="off" placeholder="DS1.…"><button class="btn" data-act="licKey">Kích hoạt</button></div></div>

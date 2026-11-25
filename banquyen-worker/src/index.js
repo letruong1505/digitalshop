@@ -134,6 +134,35 @@ async function settle(env, order, txnId, amount, note = "") {
 }
 
 // ---------- API khách ----------
+// ---------- mã đối tác & % giảm giá ----------
+let partnersReady = false;
+async function ensurePartners(env) {
+  if (partnersReady) return;
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS partners (code TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', percent INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '')").run();
+  for (const col of ["partner TEXT NOT NULL DEFAULT ''", "discount INTEGER NOT NULL DEFAULT 0", "list_amount INTEGER NOT NULL DEFAULT 0"]) {
+    try { await env.DB.prepare("ALTER TABLE orders ADD COLUMN " + col).run(); } catch (e) { /* đã có cột */ }
+  }
+  partnersReady = true;
+}
+const normPartner = (c) => String(c || "").toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 24);
+// Giá sau giảm làm tròn xuống nghìn đồng, tối thiểu 1.000 đ.
+const discounted = (list, pct) => Math.max(1000, Math.floor((list * (100 - pct)) / 100 / 1000) * 1000);
+
+async function findPartner(env, code) {
+  const c = normPartner(code);
+  if (!c) return null;
+  await ensurePartners(env);
+  return await env.DB.prepare("SELECT code,name,percent FROM partners WHERE code=?1 AND active=1").bind(c).first();
+}
+
+async function partnerInfo(url, env) {
+  const product = url.searchParams.get("sp") || "", plan = url.searchParams.get("plan") || "";
+  const list = Number(prices(env)[product]?.[plan]);
+  const p = await findPartner(env, url.searchParams.get("code"));
+  if (!p || !Number.isInteger(list)) return fail("Mã đối tác không đúng hoặc đã ngừng áp dụng");
+  return json({ ok: true, percent: p.percent, list, amount: discounted(list, p.percent) });
+}
+
 async function createOrder(req, env) {
   let b;
   try { b = await req.json(); } catch { return fail("Dữ liệu không hợp lệ"); }
@@ -141,8 +170,16 @@ async function createOrder(req, env) {
   if (!PRODUCTS[product]) return fail("Chọn phần mềm cần mua");
   const plan = String(b.plan || "");
   if (!PLANS[plan]) return fail("Chọn thời hạn bản quyền");
-  const amount = Number(prices(env)[product]?.[plan]);
-  if (!Number.isInteger(amount) || amount < 1000) return fail("Gói này chưa có giá, liên hệ Nam Linh Group");
+  const listAmount = Number(prices(env)[product]?.[plan]);
+  if (!Number.isInteger(listAmount) || listAmount < 1000) return fail("Gói này chưa có giá, liên hệ Nam Linh Group");
+  await ensurePartners(env);
+  let amount = listAmount, partner = "";
+  if (normPartner(b.partner)) {
+    const p = await findPartner(env, b.partner);
+    if (!p) return fail("Mã đối tác không đúng hoặc đã ngừng áp dụng. Xóa ô mã đối tác nếu bạn không có mã.");
+    partner = p.code;
+    amount = discounted(listAmount, p.percent);
+  }
   const machine = normMachine(b.machine);
   if (!/^[A-Z2-7]{16}$/.test(machine)) return fail("Mã máy phải gồm 16 ký tự dạng XXXX-XXXX-XXXX-XXXX. Lấy trong phần mềm: Cài đặt → Bản quyền.");
   const shop = clean(b.shop, 80);
@@ -169,8 +206,8 @@ async function createOrder(req, env) {
     const code = "NLBQ" + randFrom(CODE_ALPHABET, 6);
     try {
       await env.DB.prepare(
-        "INSERT INTO orders (code,token,product,plan,amount,machine,shop,phone,email,mst,status,created_at,ip_hash) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,'pending',?11,?12)"
-      ).bind(code, token, product, plan, amount, machine, shop, phone, email, mst, Date.now(), iph).run();
+        "INSERT INTO orders (code,token,product,plan,amount,machine,shop,phone,email,mst,status,created_at,ip_hash,partner,discount,list_amount) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,'pending',?11,?12,?13,?14,?15)"
+      ).bind(code, token, product, plan, amount, machine, shop, phone, email, mst, Date.now(), iph, partner, listAmount - amount, listAmount).run();
       return json({ code, token, amount, qr: qrUrl(env, amount, code), bank: bankInfo(env), product: PRODUCTS[product], plan: PLANS[plan].label });
     } catch (e) {
       if (!/UNIQUE|constraint/i.test(String(e))) throw e;
@@ -275,8 +312,9 @@ async function admin(req, url, env) {
   if (!env.ADMIN_TOKEN || !same(req.headers.get("Authorization") || "", "Bearer " + env.ADMIN_TOKEN)) return fail("Sai mật khẩu", 401);
   const path = url.pathname;
   if (path === "/admin/api/orders" && req.method === "GET") {
+    await ensurePartners(env);
     const rows = await env.DB.prepare(
-      "SELECT code,product,plan,amount,machine,shop,phone,email,mst,status,created_at,paid_at,paid_amount,txn_id,license_id,license_key,exp,note FROM orders ORDER BY created_at DESC LIMIT 300"
+      "SELECT code,product,plan,amount,machine,shop,phone,email,mst,status,created_at,paid_at,paid_amount,txn_id,license_id,license_key,exp,note,partner,discount FROM orders ORDER BY created_at DESC LIMIT 300"
     ).all();
     const tx = await env.DB.prepare("SELECT id,at,amount,content,order_code,result FROM txns WHERE result IN ('no-match','short','error','already-paid') ORDER BY at DESC LIMIT 50").all();
     return json({ orders: rows.results, odd: tx.results });
@@ -287,6 +325,33 @@ async function admin(req, url, env) {
     return json({ pub, keyError: err, sepay: !!env.SEPAY_API_KEY, plan: env.PLAN, prices: prices(env) });
   }
   if (path === "/admin/api/resign" && req.method === "POST") return json(await resignAll(env));
+  if (path === "/admin/api/partners" && req.method === "GET") {
+    await ensurePartners(env);
+    const rows = await env.DB.prepare(
+      "SELECT p.code,p.name,p.percent,p.active,p.created_at,p.note," +
+      "(SELECT COUNT(*) FROM orders o WHERE o.partner=p.code AND o.status IN ('paid','revoked')) AS paid_orders," +
+      "(SELECT COALESCE(SUM(o.amount),0) FROM orders o WHERE o.partner=p.code AND o.status IN ('paid','revoked')) AS revenue " +
+      "FROM partners p ORDER BY p.created_at DESC"
+    ).all();
+    return json({ list: rows.results });
+  }
+  if (path === "/admin/api/partner" && req.method === "POST") {
+    await ensurePartners(env);
+    const b = await req.json().catch(() => ({}));
+    const code = normPartner(b.code);
+    if (code.length < 3) return fail("Mã đối tác dài 3–24 ký tự, gồm chữ và số");
+    const pct = Number(b.percent);
+    if (!Number.isInteger(pct) || pct < 1 || pct > 90) return fail("% giảm giá là số nguyên từ 1 đến 90");
+    const ex = await env.DB.prepare("SELECT code FROM partners WHERE code=?1").bind(code).first();
+    if (ex) {
+      await env.DB.prepare("UPDATE partners SET name=?1, percent=?2, active=?3, note=?4 WHERE code=?5")
+        .bind(clean(b.name, 80), pct, b.active === false ? 0 : 1, clean(b.note, 120), code).run();
+    } else {
+      await env.DB.prepare("INSERT INTO partners(code,name,percent,active,created_at,note) VALUES(?1,?2,?3,?4,?5,?6)")
+        .bind(code, clean(b.name, 80), pct, b.active === false ? 0 : 1, Date.now(), clean(b.note, 120)).run();
+    }
+    return json({ ok: true, code });
+  }
   if (path === "/admin/api/revoke" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));
     await ensureRevoked(env);
@@ -341,6 +406,7 @@ export default {
       if (req.method === "GET" && p === "/api/config") return json({ prices: prices(env), products: PRODUCTS, plans: Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.label])), bank: bankInfo(env) });
       if (req.method === "POST" && p === "/api/order") return await createOrder(req, env);
       if (req.method === "GET" && p === "/api/order") return await getOrder(url, env);
+      if (req.method === "GET" && p === "/api/partner") return await partnerInfo(url, env);
       if (req.method === "GET" && p === "/api/claim") return await claim(url, env);
       if (req.method === "GET" && p === "/api/check") return await check(url, env);
       if (req.method === "POST" && p === "/sepay") return await sepay(req, env);
