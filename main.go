@@ -28,7 +28,9 @@ const (
 )
 
 func main() {
-	if os.Getenv("DS_UPDATED") != "" { time.Sleep(4 * time.Second) } // bản cũ còn đang tắt
+	// Sau khi tự cập nhật: cửa sổ cũ tự tải lại khi máy chủ mới chạy (xem ACT.updApply), nên không mở thêm cửa sổ nữa.
+	updated := os.Getenv("DS_UPDATED") != ""
+	if updated { time.Sleep(4 * time.Second) } // bản cũ còn đang tắt
 	updCleanup()
 	dir := dataDir()
 	setupLog(dir)
@@ -40,7 +42,7 @@ func main() {
 	ln, port, running := listen()
 	if running {
 		say("Digital Shop đang chạy rồi, mở lại cửa sổ bán hàng...")
-		openBrowser("http://localhost:" + strconv.Itoa(port))
+		if !updated { openBrowser("http://localhost:" + strconv.Itoa(port)) }
 		time.Sleep(2 * time.Second)
 		return
 	}
@@ -71,7 +73,7 @@ func main() {
 	for _, a := range lan { say("  Điện thoại/máy khác (cùng wifi): " + a) }
 	say("  Dữ liệu lưu tại:   " + dir)
 	say("==============================================")
-	if os.Getenv("TAPHOAX_NOBROWSER") == "" { go openBrowser(url) }
+	if os.Getenv("TAPHOAX_NOBROWSER") == "" && !updated { go openBrowser(url) }
 	go func() {
 		n := 0
 		for range time.Tick(2 * time.Minute) {
