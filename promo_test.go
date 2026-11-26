@@ -52,7 +52,7 @@ func TestPromoAndTier(t *testing.T) {
 	// khách chưa đạt hạng: không có KM VIP; mua đủ 100.000 thì đạt hạng 1
 	d, _ = promoDisc(&s0, lines, c.ID, now)
 	if d != 10000 { t.Fatalf("chưa đạt hạng, được %v", d) }
-	if _, err := db.CreateInvoice(SaleReq{CID: "x1", Lines: []Line{{PID: a.ID, Qty: 10, Price: 10000, Ratio: 1}}, Method: "cash", CustID: c.ID}, u); err != nil { t.Fatal(err) }
+	if _, err := db.CreateInvoice(SaleReq{CID: "x1", Lines: []Line{{PID: a.ID, Qty: 30, Price: 10000, Ratio: 1}}, Method: "cash", CustID: c.ID}, u); err != nil { t.Fatal(err) }
 	db.Read(func(s *State) { s0 = *s })
 	if tierIndex(tiersOf(&s0), custSpendAll(&s0)[c.ID]) != 1 { t.Fatal("phải đạt hạng Bạc") }
 	d, _ = promoDisc(&s0, lines, c.ID, now)
