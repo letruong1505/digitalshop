@@ -229,6 +229,7 @@ type Settings struct {
 	PayosAPIKey    string  `json:"payosApiKey,omitempty"`
 	PayosChecksum  string  `json:"payosChecksum,omitempty"`
 	AutoBankDone   bool    `json:"autoBankDone"`
+	PayVoice       bool    `json:"payVoice"` // đọc to khi tiền về (cần SePay)
 	DisplayKey     string  `json:"displayKey"`
 	TermsVersion   string  `json:"termsVersion"`
 	TermsAt        int64   `json:"termsAt"`

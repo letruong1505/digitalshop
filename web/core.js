@@ -129,6 +129,43 @@ function applyBoot(b) {
 }
 
 let pollT;
+
+/* ---------- đọc to khi tiền về (SePay) ---------- */
+const VN_D = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+function vn3(n, full) {
+  const h = Math.floor(n / 100), t = Math.floor(n % 100 / 10), u = n % 10, o = [];
+  if (h > 0 || full) o.push(VN_D[h] + " trăm");
+  if (t > 1) o.push(VN_D[t] + " mươi"); else if (t === 1) o.push("mười"); else if (u > 0 && (h > 0 || full)) o.push("lẻ");
+  if (u > 0) o.push(t > 1 && u === 1 ? "mốt" : t >= 1 && u === 5 ? "lăm" : VN_D[u]);
+  return o.join(" ");
+}
+function vnNum(n) {
+  n = Math.round(n); if (n <= 0) return "không";
+  const o = []; let r = n;
+  for (const [v, w] of [[1e9, "tỷ"], [1e6, "triệu"], [1e3, "nghìn"]]) if (r >= v) { o.push(vnNum(Math.floor(r / v)) + " " + w); r %= v; }
+  if (r > 0) o.push(vn3(r, o.length > 0));
+  return o.join(" ");
+}
+const voiceOn = () => { try { return localStorage.getItem("dsVoice") !== "0"; } catch (e) { return true; } };
+function speakVN(text) {
+  try {
+    if (!window.speechSynthesis) return false;
+    const u = new SpeechSynthesisUtterance(text); u.lang = "vi-VN"; u.rate = 0.95;
+    const v = speechSynthesis.getVoices().find(x => /^vi/i.test(x.lang)); if (v) u.voice = v;
+    speechSynthesis.speak(u); return true;
+  } catch (e) { return false; }
+}
+function announceMoney(amount) {
+  toast("Tiền về +" + money(amount) + "đ");
+  if (voiceOn()) speakVN("Đã nhận " + vnNum(amount) + " đồng");
+}
+let feedSeq = null;
+async function pollFeed() {
+  if (!S.settings || !S.settings.payVoice) { feedSeq = null; return; }
+  const r = await api("GET", "/api/pay/feed" + (feedSeq == null ? "" : "?after=" + feedSeq));
+  if (feedSeq != null) for (const e of r.items || []) announceMoney(e.amount);
+  feedSeq = r.seq;
+}
 function startPoll() {
   clearInterval(pollT);
   pollT = setInterval(async () => {
@@ -138,6 +175,7 @@ function startPoll() {
       if (APP && S.offline) { setOffline(false); await refresh(true); }
       else if (r.v !== S.version) await refresh(true);
       if (APP) syncOutbox();
+      pollFeed().catch(() => {});
     } catch (e) { if (APP && e.net) setOffline(true); }
   }, 3500);
 }

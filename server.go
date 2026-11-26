@@ -855,10 +855,11 @@ func (s *Server) routes() {
 		if err != nil { failErr(w, err); return }
 		writeJSON(w, ps)
 	}))
+	s.payFeedRoutes(m)
 	m.HandleFunc("POST /api/pay/config", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var req struct {
 			Provider, SepayToken, PayosClientId, PayosApiKey, PayosChecksum string
-			AutoBankDone                                                  bool
+			AutoBankDone, PayVoice                                        bool
 		}
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		var c payConf
@@ -881,6 +882,7 @@ func (s *Server) routes() {
 		err := s.db.Do(func(st *State, t *Tx) error {
 			ss := &st.Settings
 			ss.PayProvider, ss.SepayToken, ss.PayosClientID, ss.PayosAPIKey, ss.PayosChecksum, ss.AutoBankDone = c.Provider, c.SepayToken, c.PayosID, c.PayosKey, c.PayosSum, req.AutoBankDone
+			ss.PayVoice = req.PayVoice && c.Provider == "sepay"
 			t.put("settings", "", st.Settings)
 			return nil
 		})

@@ -451,7 +451,9 @@ function payCfgHtml() {
       <li>Đăng ký tài khoản tại my.sepay.vn, liên kết tài khoản ngân hàng nhận tiền (đúng số tài khoản ở mục VietQR phía trên).</li>
       <li>Vào Cấu hình công ty → API Access → Thêm API, sao chép API token dán vào đây.</li>
       <li>Mỗi hóa đơn có mã nội dung riêng (vd TXK3P9QA) nằm sẵn trong mã QR; khách không được xóa nội dung khi chuyển.</li></ol>
-    <div class="field"><label for="pc-sepay">API token SePay</label><input id="pc-sepay" class="in" type="password" autocomplete="off" placeholder="${has.sepay ? "Đã lưu · để trống để giữ nguyên" : "dán API token"}"></div>${auto}${save}
+    <div class="field"><label for="pc-sepay">API token SePay</label><input id="pc-sepay" class="in" type="password" autocomplete="off" placeholder="${has.sepay ? "Đã lưu · để trống để giữ nguyên" : "dán API token"}"></div>${auto}
+    <label class="check"><input type="checkbox" id="pc-voice" ${st.payVoice ? "checked" : ""}> Đọc to "Đã nhận … đồng" khi tiền về (máy nối loa qua cổng aux hoặc Bluetooth)</label>
+    <div class="row"><label class="check grow"><input type="checkbox" id="pc-voice-dev" ${voiceOn() ? "checked" : ""} data-ch="voiceDev"> Phát loa trên thiết bị này</label><button type="button" class="btn sm" data-act="voiceTest">Phát thử</button></div>${save}
     <p class="ps" style="margin:0">Phí dịch vụ do SePay quy định, xem trên trang của SePay.</p></div>`;
   if (k === "payos") return `<div class="stack"><ol class="small" style="margin:0;padding-left:18px">
       <li>Đăng ký tại payos.vn, liên kết tài khoản ngân hàng, tạo một kênh thanh toán.</li>
@@ -467,11 +469,13 @@ ACT.payProv = b => { S.payProvSel = b.dataset.v; $$('[data-act="payProv"]').forE
 ACT.paySave = async b => {
   const k = S.payProvSel ?? S.settings.payProvider ?? "", v = id => ($(id) ? $(id).value.trim() : "");
   b.disabled = true;
-  const r = await run(() => api("POST", "/api/pay/config", { provider: k, sepayToken: v("#pc-sepay"), payosClientId: v("#pc-id"), payosApiKey: v("#pc-key"), payosChecksum: v("#pc-sum"), autoBankDone: !!($("#pc-auto") && $("#pc-auto").checked) }),
+  const r = await run(() => api("POST", "/api/pay/config", { provider: k, sepayToken: v("#pc-sepay"), payosClientId: v("#pc-id"), payosApiKey: v("#pc-key"), payosChecksum: v("#pc-sum"), autoBankDone: !!($("#pc-auto") && $("#pc-auto").checked), payVoice: !!($("#pc-voice") && $("#pc-voice").checked) }),
     k ? "Kết nối được, đã bật tự xác nhận chuyển khoản" : "Đã tắt tự xác nhận chuyển khoản");
   b.disabled = false;
   if (r) { S.payProvSel = undefined; await refresh(true); }
 };
+ACT.voiceTest = () => { if (!speakVN("Đã nhận " + vnNum(150000) + " đồng")) toast("Thiết bị này chưa có giọng đọc tiếng Việt. Cài giọng ở Cài đặt hệ thống → Văn bản thành giọng nói", true); };
+ON_CHANGE.voiceDev = el => { try { localStorage.setItem("dsVoice", el.checked ? "1" : "0"); } catch (e) {} };
 ACT.dispKey = async () => { if (await run(() => api("POST", "/api/display/key"), "Đã đổi mã. Mở lại màn hình khách từ nút Cài màn hình khách")) refresh(true); };
 
 /* ---------- sao lưu ra USB ---------- */

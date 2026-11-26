@@ -62,6 +62,7 @@ func main() {
 		return
 	}
 	srv := NewServer(db, port)
+	go srv.payFeedLoop()
 	url := "http://localhost:" + strconv.Itoa(port)
 	lan := lanAddrs(port)
 	say("==============================================")
