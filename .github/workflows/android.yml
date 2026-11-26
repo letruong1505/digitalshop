@@ -25,9 +25,14 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
-      - name: Cài gói Android SDK
-        run: yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null
+      - name: Cài gói Android SDK (máy chạy GitHub đã có sẵn SDK)
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SM=$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -1)
+          [ -n "$SM" ] || { echo "Không thấy sdkmanager trong $SDK"; ls "$SDK"; exit 1; }
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"; echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          yes | "$SM" --sdk_root="$SDK" --licenses >/dev/null || true
+          "$SM" --sdk_root="$SDK" "platforms;android-34" "build-tools;34.0.0" | tail -3
       - name: Giải mã khóa ký
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
