@@ -17,7 +17,7 @@ VIEWS.customers = function () {
       !items.length ? `<div style="padding:20px 16px 20px 60px" class="muted">Không tìm thấy khách “${esc(S.cQ)}”.</div>` :
       items.slice(0, 500).map((c, i) => `<button class="debtrow" data-act="custOpenD" data-id="${esc(c.id)}"><span class="idx num">${i + 1}</span><span class="who">${esc(c.name)}${c.tier ? ` <span class="pill amber">${esc(c.tier)}</span>` : ""}</span>
         <span class="amt num ${(c.debt || 0) <= 0 ? "zero" : ""}">${(c.debt || 0) <= 0 ? (c.debt < 0 ? "trả dư " + fmt(-c.debt) : "không nợ") : money(c.debt)}</span>
-        <span class="meta">${c.phone ? esc(c.phone) + " · " : ""}${esc(c.code)}${c.spend ? " · đã mua " + fmt(c.spend) : ""}${c.last ? " · giao dịch " + new Date(c.last).toLocaleDateString("vi-VN") : ""}${c.note ? " · " + esc(c.note) : ""}</span></button>`).join("")}
+        <span class="meta">${c.phone ? esc(c.phone) + " · " : ""}${esc(c.code)}${c.points ? " · " + fmt(c.points) + " điểm" : ""}${c.spend ? " · đã mua " + fmt(c.spend) : ""}${c.last ? " · giao dịch " + new Date(c.last).toLocaleDateString("vi-VN") : ""}${c.note ? " · " + esc(c.note) : ""}</span></button>`).join("")}
     </div></div>`;
 };
 ON_INPUT.cQ = el => { S.cQ = el.value; VIEWS.customers(); };
@@ -53,6 +53,7 @@ async function partyDetail(kind, id) {
   openSheet(`<div class="sheet-h"><h2 ${isC ? 'style="font-family:var(--f-hand);font-size:28px;font-weight:400"' : ""}>${esc(p.name)}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
     <div class="sumrow"><div><div class="lbl">${isC ? "Khách đang nợ" : "Mình đang nợ"}</div><div class="due" style="color:${p.debt > 0 ? "var(--red)" : "var(--green-text)"}">${money(p.debt)}</div></div>
       <div style="text-align:right">${p.phone ? `<div class="num" style="user-select:all;font-weight:700">${esc(p.phone)}</div>` : ""}<div class="ps">${esc(p.code)}${p.addr ? " · " + esc(p.addr) : ""}</div><div class="ps">${esc(p.note || "")}</div></div></div>
+    ${isC && ((S.settings.loyalty || {}).on || p.points) ? `<div class="card" style="padding:10px 12px"><div class="row"><div class="grow"><div class="lbl">Điểm tích lũy</div><div class="num" style="font-size:20px;font-weight:700">${fmt(p.points || 0)} điểm${(S.settings.loyalty || {}).pointValue ? ` <span class="ps">≈ ${money((p.points || 0) * S.settings.loyalty.pointValue)}</span>` : ""}</div></div>${can("manage") ? `<button class="btn sm" data-act="ptsAdj" data-id="${esc(id)}">Cộng / trừ điểm</button>` : ""}</div></div>` : ""}
     <div class="card stack" style="padding:12px">
       ${isC ? (!can("money|sell") ? "" : `<div class="row">${p.debt > 0 && can("money") ? `<button class="btn pri grow" data-act="debtPay" data-id="${esc(id)}">Thu nợ khách</button>` : `<span class="ps grow">${p.debt > 0 ? "" : "Khách không còn nợ."}</span>`}<button class="btn ${p.debt > 0 && can("money") ? "" : "pri"}" data-act="custReturn" data-id="${esc(id)}">Khách trả hàng</button></div>`) : `<div class="field"><label for="pdAmt">Trả nợ nhà cung cấp</label><div class="row"><input id="pdAmt" class="in num grow" inputmode="numeric" placeholder="Số tiền" style="min-width:140px">
         <select id="pdMethod" class="in" style="width:auto"><option value="cash">Tiền mặt</option><option value="bank">Chuyển khoản</option></select>
@@ -68,6 +69,7 @@ async function partyDetail(kind, id) {
     let what, eff;
     if (x.type === "invoice") { what = `Hóa đơn ${esc(x.code)} · ${money(x.total)}<div class="ps">${esc(x.lines.map(l => l.name + " ×" + fq(l.qty)).join(", ")).slice(0, 120)}</div>`; eff = x.debt; }
     else if (x.type === "return") { what = `Khách trả hàng ${esc(x.code)} · ${money(x.total)}${x.refund > 0 ? " · " + ({ cash: "hoàn tiền mặt", bank: "hoàn chuyển khoản", credit: "giữ làm số dư" }[x.refundMethod] || "") + " " + money(x.refund) : ""}${x.restock ? "" : " · không nhập kho"}<div class="ps">${esc(x.lines.map(l => l.name + " ×" + fq(l.qty)).join(", ")).slice(0, 120)}</div>`; eff = x.debtEffect; }
+    else if (x.type === "pts") { what = `Điều chỉnh điểm ${x.delta > 0 ? "+" : ""}${fmt(x.delta)} · còn ${fmt(x.bal)}${x.note ? " · " + esc(x.note) : ""}<div class="ps">${esc(x.staff || "")}</div>`; eff = 0; }
     else if (x.type === "receipt") { what = `Phiếu nhập ${esc(x.code)} · ${money(x.total)}`; eff = x.debt; }
     else { what = `${esc(x.cat || (x.kind === "thu" ? "Phiếu thu" : x.kind === "chi" ? "Phiếu chi" : "Điều chỉnh"))} ${esc(x.code)}${x.method === "bank" && x.kind !== "adj" ? " · chuyển khoản" : ""}${x.note ? `<div class="ps">${esc(x.note)}</div>` : ""}`; eff = x.debtEffect; }
     return `<tr class="${x.void ? "void" : ""}"><td class="num ps" style="white-space:nowrap">${dt(x.time)}</td><td>${what}</td><td class="r num" style="color:${eff > 0 ? "var(--red)" : eff < 0 ? "var(--green-text)" : "inherit"}"><b>${eff ? (eff > 0 ? "+" : "") + fmt(eff) : ""}</b></td>
@@ -875,10 +877,40 @@ function promoWhat(p) {
   const t = p.scope === "product" ? (S.products.get(p.target) || {}).name || "(mặt hàng đã xóa)" : p.scope === "group" ? "Nhóm " + p.target : "Toàn bộ hàng";
   return t + " · giảm " + (p.kind === "amt" ? money(p.value) + "/đơn vị" : p.value + "%");
 }
+function loyaltyCard() {
+  const l = S.settings.loyalty || {}, on = !!l.on;
+  return `<div class="card stack" style="margin-bottom:12px"><div class="row"><h3 class="grow" style="margin:0">Tích điểm khách hàng</h3><button class="btn sm pri" data-act="loySave">Lưu</button></div>
+    <label class="check"><input type="checkbox" id="loy-on" ${on ? "checked" : ""}> Bật tích điểm (chỉ tính cho khách đã chọn trên hóa đơn)</label>
+    <div class="grid2">
+      <div class="field"><label for="loy-earn">Mua bao nhiêu đồng được 1 điểm</label><input id="loy-earn" class="in r num" inputmode="numeric" value="${fmt(l.earnPer || 10000)}"></div>
+      <div class="field"><label for="loy-val">1 điểm đổi được bao nhiêu đồng</label><input id="loy-val" class="in r num" inputmode="numeric" value="${fmt(l.pointValue || 100)}"></div>
+      <div class="field"><label for="loy-min">Dùng tối thiểu (điểm)</label><input id="loy-min" class="in r num" inputmode="numeric" value="${fmt(l.minRedeem || 0)}"></div>
+      <div class="field"><label for="loy-pct">Tối đa % hóa đơn trả bằng điểm</label><input id="loy-pct" class="in r num" inputmode="numeric" value="${fmt(l.maxPct || 100)}"></div></div>
+    <p class="ps" style="margin:0">Ví dụ: 10.000đ = 1 điểm, 1 điểm = 100đ nghĩa là mua 1 triệu được 100 điểm, đổi ra 10.000đ (hoàn 1%). Điểm tính trên số tiền khách thực trả (sau khuyến mãi và điểm đã dùng). Hủy hóa đơn hoặc khách trả hàng sẽ thu hồi điểm tương ứng. Khi mất mạng (Android) vẫn tích điểm nhưng chưa dùng điểm được.</p></div>`;
+}
+ACT.loySave = async () => {
+  const body = { on: $("#loy-on").checked, earnPer: parseMoney($("#loy-earn").value), pointValue: parseMoney($("#loy-val").value), minRedeem: parseMoney($("#loy-min").value), maxPct: parseMoney($("#loy-pct").value) };
+  const r = await run(() => api("POST", "/api/loyalty", body), "Đã lưu cài đặt tích điểm");
+  if (r) { await refresh(true); promoRender(); }
+};
+ACT.ptsAdj = b => {
+  const id = b.dataset.id, c = S.customers.get(id); if (!c) return;
+  openSheet(`<div class="sheet-h"><h2>Điểm của ${esc(c.name)}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <p class="ps">Hiện có <b>${fmt(c.points || 0)}</b> điểm. Nhập số dương để cộng, số âm để trừ (ví dụ tặng điểm sinh nhật, sửa sai).</p>
+    <div class="grid2"><div class="field"><label for="pa-n">Số điểm (+/−)</label><input id="pa-n" class="in r num" inputmode="numeric" placeholder="+50"></div>
+    <div class="field"><label for="pa-note">Lý do</label><input id="pa-note" class="in"></div></div>
+    <div class="row"><span class="grow"></span><button class="btn pri" data-act="ptsAdjGo" data-id="${esc(id)}">Ghi nhận</button></div>`, { focus: "#pa-n" });
+};
+ACT.ptsAdjGo = async b => {
+  const delta = parseInt(String($("#pa-n").value).replace(/[^\d+-]/g, ""), 10);
+  if (!delta) return toast("Nhập số điểm cần cộng hoặc trừ", true);
+  const r = await run(() => api("POST", `/api/customers/${b.dataset.id}/points`, { delta, note: $("#pa-note").value }), "Đã cập nhật điểm");
+  if (r) { await refresh(true); closeSheet(); }
+};
 function promoRender() {
   const box = $("#promoBox"); if (!box) return;
   const list = S.settings.promos || [], tiers = tiersNow();
-  box.innerHTML = `<div class="section"><div class="row"><h2 class="grow" style="margin:0">Khuyến mãi tự động</h2><button class="btn sm pri" data-act="promoEdit" data-i="-1">+ Khuyến mãi</button></div>
+  box.innerHTML = loyaltyCard() + `<div class="section"><div class="row"><h2 class="grow" style="margin:0">Khuyến mãi tự động</h2><button class="btn sm pri" data-act="promoEdit" data-i="-1">+ Khuyến mãi</button></div>
     <p class="muted" style="margin:6px 0 10px;max-width:760px">Khuyến mãi tự áp dụng khi bán hàng đúng khung giờ, đúng ngày, đúng hạng khách. Hết giờ tự về giá thường. Mỗi mặt hàng chỉ lấy một khuyến mãi có lợi nhất cho khách (không cộng dồn).</p>
     ${list.length ? `<div class="tbl"><table><thead><tr><th>Chương trình</th><th>Áp dụng cho</th><th>Khi nào</th><th>Khách</th><th></th></tr></thead><tbody>${list.map((p, i) => `<tr class="click" data-act="promoEdit" data-i="${i}"><td class="pn">${esc(p.name)} ${p.active ? '<span class="pill green">đang bật</span>' : '<span class="pill mute">tắt</span>'}</td><td>${esc(promoWhat(p))}</td><td class="ps">${esc(promoWhen(p))}</td><td class="ps">${p.minTier ? "Hạng " + esc((tiers[p.minTier - 1] || {}).name || "") + " trở lên" : "Mọi khách"}</td><td class="r ps">Sửa</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">Chưa có khuyến mãi nào. Ví dụ: giảm 20% đồ uống từ 18h đến 22h, hoặc khách hạng Vàng giảm 5% mọi mặt hàng.</div>`}
     <div class="card stack" style="margin-top:12px"><div class="row"><h3 class="grow" style="margin:0">Hạng khách hàng</h3><button class="btn sm" data-act="tierSave">Lưu hạng</button></div>

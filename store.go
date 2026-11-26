@@ -76,6 +76,7 @@ type Party struct {
 	Last    int64   `json:"last"`
 	Spend   float64 `json:"spend,omitempty"` // tổng đã mua (chỉ tính khi gửi cho giao diện)
 	Tier    string  `json:"tier,omitempty"`  // hạng khách (chỉ tính khi gửi cho giao diện)
+	Points  int     `json:"points,omitempty"` // điểm tích lũy hiện có
 }
 
 type Line struct {
@@ -109,6 +110,10 @@ type Invoice struct {
 	Note     string  `json:"note"`
 	Promo    float64 `json:"promo,omitempty"`     // phần giảm giá tự động do khuyến mãi (đã nằm trong Disc)
 	PromoNote string `json:"promoNote,omitempty"`
+	PtsUsed   int     `json:"ptsUsed,omitempty"`   // điểm khách đã dùng (giảm PtsDisc, nằm trong Disc)
+	PtsDisc   float64 `json:"ptsDisc,omitempty"`
+	PtsEarned int     `json:"ptsEarned,omitempty"` // điểm được cộng từ hóa đơn này
+	PtsBal    int     `json:"ptsBal,omitempty"`    // số dư điểm sau hóa đơn
 	OrderID  string  `json:"orderId,omitempty"`
 	Src      string  `json:"src,omitempty"` // "import" = lịch sử nhập từ phần mềm khác
 	Void     bool    `json:"void"`
@@ -241,6 +246,7 @@ type Settings struct {
 	GdtUser        string  `json:"gdtUser"` // tài khoản (MST) đăng nhập hoadondientu.gdt.gov.vn; không lưu mật khẩu
 	Promos         []Promo `json:"promos"`
 	Tiers          []Tier  `json:"tiers"`
+	Loyalty        Loyalty `json:"loyalty"`
 }
 
 type State struct {
@@ -252,6 +258,7 @@ type State struct {
 	Counts    map[string]*Count     `json:"counts"`
 	Cash      map[string]*CashEntry `json:"cash"`
 	Returns   map[string]*CustReturn `json:"returns"`
+	PtsLog    map[string]*PtsEntry  `json:"ptsLog"`
 	Orders    map[string]*Order     `json:"orders"`
 	Users     map[string]*User      `json:"users"`
 	InInvs    map[string]*InInvoice `json:"inInvoices"`
@@ -264,7 +271,7 @@ func newState() *State {
 	return &State{
 		Products: map[string]*Product{}, Customers: map[string]*Party{}, Suppliers: map[string]*Party{},
 		Invoices: map[string]*Invoice{}, Receipts: map[string]*Receipt{}, Counts: map[string]*Count{},
-		Cash: map[string]*CashEntry{}, Returns: map[string]*CustReturn{}, Orders: map[string]*Order{}, Users: map[string]*User{},
+		Cash: map[string]*CashEntry{}, Returns: map[string]*CustReturn{}, PtsLog: map[string]*PtsEntry{}, Orders: map[string]*Order{}, Users: map[string]*User{},
 		InInvs: map[string]*InInvoice{}, InMap: map[string]*InMap{},
 		Counters: map[string]int{},
 		Settings: Settings{Paper: "80", ExpWarn: 30, ExpDanger: 7, MinMargin: 10, Footer: "Cảm ơn quý khách, hẹn gặp lại!", BlockExpired: true},
@@ -280,6 +287,7 @@ func (s *State) fill() {
 	if s.Counts == nil { s.Counts = map[string]*Count{} }
 	if s.Cash == nil { s.Cash = map[string]*CashEntry{} }
 	if s.Returns == nil { s.Returns = map[string]*CustReturn{} }
+	if s.PtsLog == nil { s.PtsLog = map[string]*PtsEntry{} }
 	if s.Orders == nil { s.Orders = map[string]*Order{} }
 	if s.Users == nil { s.Users = map[string]*User{} }
 	if s.InInvs == nil { s.InInvs = map[string]*InInvoice{} }
@@ -376,6 +384,8 @@ func (db *DB) apply(r rec) {
 		applyMap(s.Cash, r)
 	case "return":
 		applyMap(s.Returns, r)
+	case "ptslog":
+		applyMap(s.PtsLog, r)
 	case "order":
 		applyMap(s.Orders, r)
 	case "user":

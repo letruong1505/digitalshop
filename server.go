@@ -351,6 +351,12 @@ func (s *Server) routes() {
 						items = append(items, map[string]any{"type": "return", "id": rt.ID, "code": rt.Code, "time": rt.Time, "total": rt.Total, "debtEffect": eff, "void": rt.Void, "lines": rt.Lines, "applyDebt": rt.ApplyDebt, "refund": rt.Refund, "refundMethod": rt.RefundMethod, "restock": rt.Restock, "note": rt.Note, "staff": rt.Staff, "debtAfter": rt.DebtAfter})
 					}
 				}
+				if kind == "cust" {
+					for _, e := range st.PtsLog {
+						if e.CustID != id { continue }
+						items = append(items, map[string]any{"type": "pts", "id": e.ID, "time": e.Time, "delta": e.Delta, "bal": e.Bal, "note": e.Note, "staff": e.Staff})
+					}
+				}
 				for _, e := range st.Cash {
 					if e.PartyID != id || e.PartyType != kind { continue }
 					items = append(items, map[string]any{"type": "cash", "id": e.ID, "code": e.Code, "time": e.Time, "kind": e.Kind, "amount": e.Amount, "method": e.Method, "cat": e.Cat, "note": e.Note, "void": e.Void, "debtEffect": debtEffect(*e)})
@@ -423,6 +429,22 @@ func (s *Server) routes() {
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		if err := s.db.SavePromos(req.Promos, req.Tiers); err != nil { failErr(w, err); return }
 		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	m.HandleFunc("POST /api/loyalty", s.auth("admin|manage", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var l Loyalty
+		if err := readJSON(r, &l); err != nil { failErr(w, err); return }
+		if err := s.db.SaveLoyalty(l); err != nil { failErr(w, err); return }
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	m.HandleFunc("POST /api/customers/{id}/points", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var req struct {
+			Delta int    `json:"delta"`
+			Note  string `json:"note"`
+		}
+		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
+		e, err := s.db.AdjustPoints(r.PathValue("id"), req.Delta, req.Note, u)
+		if err != nil { failErr(w, err); return }
+		writeJSON(w, e)
 	}))
 	m.HandleFunc("POST /api/promo/quote", s.auth("sell", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var req struct {
@@ -765,6 +787,7 @@ func (s *Server) routes() {
 			o := st.Settings
 			ns.PayProvider, ns.SepayToken, ns.PayosClientID, ns.PayosAPIKey, ns.PayosChecksum, ns.DisplayKey = o.PayProvider, o.SepayToken, o.PayosClientID, o.PayosAPIKey, o.PayosChecksum, o.DisplayKey
 			ns.GdtUser = o.GdtUser
+			ns.Loyalty = o.Loyalty
 			ns.UpdateOff = o.UpdateOff
 			st.Settings = ns
 			t.put("settings", "", st.Settings)

@@ -87,6 +87,7 @@ type SaleReq struct {
 	Time      int64   `json:"time"`
 	PromoDisc float64 `json:"promoDisc"`
 	PromoNote string  `json:"promoNote"`
+	Points    int     `json:"points"` // điểm khách muốn dùng để giảm giá
 }
 
 func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
@@ -150,17 +151,28 @@ func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 		disc := r0(req.Disc)
 		if disc < 0 { disc = 0 }
 		if disc > sub-promo { disc = sub - promo }
-		total := sub - disc - promo
-		promoNote := ""
-		for i, h := range hits { if i > 0 { promoNote += ", " }; promoNote += h.Name }
-		inv := &Invoice{ID: req.CID, Time: saleTime, Lines: lines, Sub: sub, Disc: disc + promo, Promo: promo, PromoNote: promoNote, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
-		if inv.ID == "" { inv.ID = newID() }
 		var cust *Party
 		if req.CustID != "" {
 			cust = s.Customers[req.CustID]
 			if cust == nil { return uerr("Không tìm thấy khách hàng") }
-			inv.CustID, inv.CustName = cust.ID, cust.Name
 		}
+		lo := s.Settings.Loyalty
+		ptsUsed, ptsDisc := 0, 0.0
+		if req.Points > 0 {
+			if !lo.On { return uerr("Cửa hàng chưa bật tích điểm") }
+			if cust == nil { return uerr("Chọn khách hàng để dùng điểm") }
+			if req.Points > cust.Points { return uerr("Khách chỉ có %d điểm", cust.Points) }
+			if lo.MinRedeem > 0 && req.Points < lo.MinRedeem { return uerr("Mỗi lần dùng tối thiểu %d điểm", lo.MinRedeem) }
+			if mx := lo.maxRedeem(cust.Points, sub-promo-disc); req.Points > mx { return uerr("Hóa đơn này dùng tối đa %d điểm", mx) }
+			ptsUsed, ptsDisc = req.Points, r0(float64(req.Points)*lo.PointValue)
+			if ptsDisc > sub-promo-disc { ptsDisc = sub - promo - disc }
+		}
+		total := sub - disc - promo - ptsDisc
+		promoNote := ""
+		for i, h := range hits { if i > 0 { promoNote += ", " }; promoNote += h.Name }
+		inv := &Invoice{ID: req.CID, Time: saleTime, Lines: lines, Sub: sub, Disc: disc + promo + ptsDisc, Promo: promo, PtsUsed: ptsUsed, PtsDisc: ptsDisc, PromoNote: promoNote, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
+		if inv.ID == "" { inv.ID = newID() }
+		if cust != nil { inv.CustID, inv.CustName = cust.ID, cust.Name }
 		switch req.Method {
 		case "bank":
 			inv.Bank = total
@@ -189,6 +201,10 @@ func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 		if cust != nil {
 			cust.Debt = r0(cust.Debt + inv.DebtAmt)
 			cust.Last = inv.Time
+			inv.PtsEarned = lo.earn(total)
+			cust.Points += inv.PtsEarned - ptsUsed
+			if cust.Points < 0 { cust.Points = 0 }
+			inv.PtsBal = cust.Points
 			t.put("customer", cust.ID, cust)
 		}
 		if req.OrderID != "" {
@@ -234,6 +250,13 @@ func (db *DB) VoidInvoice(id string, u *User) error {
 			}
 			if inv.CustID != "" && inv.DebtAmt != 0 {
 				if c := s.Customers[inv.CustID]; c != nil { c.Debt = r0(c.Debt - inv.DebtAmt); t.put("customer", c.ID, c) }
+			}
+			if inv.CustID != "" && (inv.PtsUsed != 0 || inv.PtsEarned != 0) {
+				if c := s.Customers[inv.CustID]; c != nil {
+					c.Points += inv.PtsUsed - inv.PtsEarned
+					if c.Points < 0 { c.Points = 0 }
+					t.put("customer", c.ID, c)
+				}
 			}
 		}
 		inv.Void, inv.VoidAt = true, nowMs()

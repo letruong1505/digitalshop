@@ -24,6 +24,7 @@ type CustReturn struct {
 	RefundMethod string  `json:"refundMethod"` // cash | bank | credit (giữ làm số dư)
 	CashID       string  `json:"cashId,omitempty"`
 	DebtAfter    float64 `json:"debtAfter"`
+	PtsTaken     int     `json:"ptsTaken,omitempty"` // điểm thu hồi do trả hàng
 	Note         string  `json:"note"`
 	Staff        string  `json:"staff"`
 	Void         bool    `json:"void"`
@@ -156,6 +157,11 @@ func (db *DB) CreateReturn(req ReturnReq, u *User) (*CustReturn, error) {
 			r.CashID = e.ID
 		}
 		c.Last = now
+		if n := s.Settings.Loyalty.earn(total); n > 0 {
+			if n > c.Points { n = c.Points }
+			c.Points -= n
+			r.PtsTaken = n
+		}
 		r.DebtAfter = c.Debt
 		t.put("customer", c.ID, c)
 		s.Returns[r.ID] = r
@@ -174,6 +180,7 @@ func (db *DB) VoidReturn(id string) error {
 		if c := s.Customers[r.CustID]; c != nil {
 			c.Debt = r0(c.Debt + r.ApplyDebt)
 			if r.RefundMethod == "credit" { c.Debt = r0(c.Debt + r.Refund) }
+			c.Points += r.PtsTaken
 			t.put("customer", c.ID, c)
 		}
 		if r.Restock { for _, l := range r.Lines { stockMove(s, t, l, -1) } }

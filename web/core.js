@@ -480,9 +480,12 @@ function receiptHtml(inv) {
     <table>${lines}</table><hr>
     <table><tr><td>Tiền hàng</td><td colspan="2" class="r">${fmt(inv.sub)}</td></tr>
     ${inv.promo ? `<tr><td>Khuyến mãi${inv.promoNote ? " (" + esc(inv.promoNote) + ")" : ""}</td><td colspan="2" class="r">-${fmt(inv.promo)}</td></tr>` : ""}
-    ${inv.disc - (inv.promo || 0) > 0 ? `<tr><td>Giảm giá</td><td colspan="2" class="r">-${fmt(inv.disc - (inv.promo || 0))}</td></tr>` : ""}
+    ${inv.ptsUsed ? `<tr><td>Dùng ${fmt(inv.ptsUsed)} điểm</td><td colspan="2" class="r">-${fmt(inv.ptsDisc)}</td></tr>` : ""}
+    ${inv.disc - (inv.promo || 0) - (inv.ptsDisc || 0) > 0 ? `<tr><td>Giảm giá</td><td colspan="2" class="r">-${fmt(inv.disc - (inv.promo || 0) - (inv.ptsDisc || 0))}</td></tr>` : ""}
     <tr><td class="big">TỔNG CỘNG</td><td colspan="2" class="r big">${fmt(inv.total)}</td></tr>${pay}
-    ${cust && inv.debt ? `<tr><td>Tổng nợ hiện tại</td><td colspan="2" class="r">${fmt(cust.debt)}</td></tr>` : ""}</table>
+    ${cust && inv.debt ? `<tr><td>Tổng nợ hiện tại</td><td colspan="2" class="r">${fmt(cust.debt)}</td></tr>` : ""}
+    ${inv.ptsEarned ? `<tr><td>Điểm được cộng</td><td colspan="2" class="r">+${fmt(inv.ptsEarned)}</td></tr>` : ""}
+    ${inv.custName && (inv.ptsEarned || inv.ptsUsed) ? `<tr><td>Điểm hiện có</td><td colspan="2" class="r">${fmt(inv.ptsBal || 0)}</td></tr>` : ""}</table>
     ${inv.note ? `<div>Ghi chú: ${esc(inv.note)}</div>` : ""}${qr}
     <hr><div class="c">${esc(st.footer || "Cảm ơn quý khách!")}</div></div>`;
 }

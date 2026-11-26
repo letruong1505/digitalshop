@@ -13,7 +13,21 @@ function tabTotals(t) {
   const sub = Math.round(t.lines.reduce((a, l) => a + l.qty * l.price, 0));
   const promo = Math.min((t.promo && t.promo.disc) || 0, sub);
   const disc = Math.min(parseMoney(t.disc), sub - promo);
-  return { sub, disc, promo, total: Math.max(0, sub - promo - disc), n: t.lines.length };
+  const pts = ptsAllowed(t, sub - promo - disc);
+  const ptsDisc = Math.min(Math.round(pts.use * (S.settings.loyalty || {}).pointValue || 0), sub - promo - disc);
+  return { sub, disc, promo, total: Math.max(0, sub - promo - disc - ptsDisc), n: t.lines.length, pts: pts.use, ptsDisc, ptsMax: pts.max, ptsBal: pts.bal };
+}
+/* Tích điểm: số điểm dùng được = min(điểm khách có, trần % hóa đơn); máy chủ kiểm tra lại lúc lập hóa đơn */
+function ptsAllowed(t, payable) {
+  const lo = S.settings.loyalty || {}, c = t.custId ? S.customers.get(t.custId) : null;
+  const bal = c ? c.points || 0 : 0;
+  if (!lo.on || !c || !lo.pointValue || (APP && S.offline) || payable <= 0 || bal <= 0) return { use: 0, max: 0, bal };
+  let cap = lo.maxPct > 0 && lo.maxPct < 100 ? payable * lo.maxPct / 100 : payable;
+  let max = Math.min(bal, Math.floor(cap / lo.pointValue));
+  if (lo.minRedeem && max < lo.minRedeem) max = 0;
+  const want = Math.max(0, Math.floor(+t.pts || 0));
+  const use = want && max && want >= (lo.minRedeem || 0) ? Math.min(want, max) : 0;
+  return { use, max, bal };
 }
 /* Khuyến mãi tự động: hỏi máy chủ (máy chủ cũng tự tính lại lúc lập hóa đơn nên luôn đúng giờ, đúng hạng khách) */
 let promoTimer = null;
@@ -110,6 +124,18 @@ function renderTiles() {
   $("#posGrid").innerHTML = h;
 }
 
+function ptsRowHtml(t, T, cust) {
+  const lo = S.settings.loyalty || {};
+  if (!lo.on || !cust) return "";
+  const earn = lo.earnPer > 0 ? Math.floor(T.total / lo.earnPer) : 0;
+  const bal = cust.points || 0;
+  let h = `<div class="sumrow" style="align-items:center"><span class="muted">Điểm: <b>${fmt(bal)}</b>${T.ptsMax ? ` <span class="ps">(dùng tối đa ${fmt(T.ptsMax)})</span>` : ""}</span>`;
+  if (T.ptsMax) h += `<span class="row" style="gap:6px"><input id="posPts" class="in sm r num" style="width:80px" inputmode="numeric" placeholder="0" value="${t.pts ? esc(String(T.pts)) : ""}" aria-label="Số điểm dùng"><button class="btn sm" data-act="ptsAll">Dùng hết</button></span>`;
+  h += `</div>`;
+  if (T.ptsDisc > 0) h += `<div class="sumrow" style="color:var(--green-text)"><span>Dùng ${fmt(T.pts)} điểm</span><span class="num">-${money(T.ptsDisc)}</span></div>`;
+  if (earn > 0) h += `<div class="sumrow"><span class="ps">Đơn này được cộng</span><span class="ps num">+${fmt(earn)} điểm</span></div>`;
+  return h;
+}
 function renderCart() {
   if (S.view !== "pos" || !$("#cart")) return;
   const t = curTab(); promoSync(t);
@@ -154,6 +180,7 @@ function renderCart() {
     <div class="sumrow"><span class="muted">Tiền hàng (${T.n} món)</span><span class="num">${money(T.sub)}</span></div>
     ${T.promo > 0 ? `<div class="sumrow" style="color:var(--green-text)"><span>Khuyến mãi${t.promo && t.promo.hits.length ? ": " + esc(t.promo.hits.map(x => x.name).join(", ")) : ""}</span><span class="num">-${money(T.promo)}</span></div>` : ""}
     <div class="sumrow"><label for="posDisc" class="muted">Giảm giá</label><input id="posDisc" class="in sm r num" style="width:130px" inputmode="numeric" placeholder="0" value="${esc(t.disc)}"></div>
+    ${ptsRowHtml(t, T, cust)}
     <div class="sumrow"><span class="lbl">Khách cần trả</span><span class="due" id="posDue">${money(T.total)}</span></div>
     <div class="seg" role="group" aria-label="Hình thức thanh toán">
       <button data-act="payM" data-v="cash" aria-pressed="${t.method === "cash"}">Tiền mặt</button>
@@ -299,13 +326,15 @@ ON_CHANGE.linePrice = el => { if (!canEditPrice()) return; curTab().lines[+el.da
 ON_INPUT.posQ = el => { S.posQ = el.value; renderTiles(); };
 ON_INPUT.posDisc = el => { curTab().disc = el.value; saveTabs(); const T = tabTotals(curTab()); const d = $("#posDue"); if (d) d.textContent = money(T.total); const c = $("#checkoutBtn"); if (c) c.firstChild.textContent = (curTab().method === "debt" ? "Ghi nợ " : "Thanh toán ") + money(T.total) + " "; };
 ON_CHANGE.posDisc = el => { el.blur(); renderCart(); };
+ON_CHANGE.posPts = el => { curTab().pts = Math.max(0, Math.floor(+String(el.value).replace(/\D/g, "") || 0)); saveTabs(); renderCart(); };
+ACT.ptsAll = () => { const t = curTab(); t.pts = tabTotals({ ...t, pts: 1e9 }).pts; saveTabs(); renderCart(); };
 ON_INPUT.posNote = el => { curTab().note = el.value; saveTabs(); };
 ON_INPUT.posGiven = el => { curTab().given = el.value; saveTabs(); const c = curTab(); const o = $("#changeOut"); if (o) o.innerHTML = changeHtml(parseMoney(el.value), tabTotals(c).total, c.custId ? S.customers.get(c.custId) : null); };
 ON_CHANGE.posGiven = el => { const g = parseMoney(el.value); curTab().given = g ? fmt(g) : ""; el.value = curTab().given; saveTabs(); };
 ACT.given = b => { curTab().given = fmt(+b.dataset.v); saveTabs(); renderCart(); };
 ACT.payM = b => { curTab().method = b.dataset.v; saveTabs(); if (b.dataset.v === "debt" && !curTab().custId) { S.custOpen = true; S.custQ = ""; } renderCart(); if (S.custOpen) setTimeout(() => { const q = $("#custQ"); if (q) q.focus(); }, 0); };
 ACT.custOpen = () => { S.custOpen = true; S.custQ = ""; renderCart(); setTimeout(() => { const q = $("#custQ"); if (q) q.focus(); }, 0); };
-ACT.custClear = () => { curTab().custId = ""; saveTabs(); renderCart(); };
+ACT.custClear = () => { curTab().custId = ""; curTab().pts = 0; saveTabs(); renderCart(); };
 ACT.posCust = b => { curTab().custId = b.dataset.id; S.custOpen = false; saveTabs(); renderCart(); };
 ACT["posCust-new"] = async b => {
   const c = await run(() => api("POST", "/api/customers", { name: b.dataset.name }), "Đã thêm khách vào sổ");
@@ -329,7 +358,7 @@ async function checkout() {
   const btn = $("#checkoutBtn"); if (btn) btn.disabled = true;
   try {
     const paidNote = t.method === "bank" && t.pay && t.pay.status === "paid" && t.pay.amount === T.total ? `CK đã xác nhận tự động (${t.pay.code})` : "";
-    const body = { cid: t.cid, lines: t.lines.map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio, qty: l.qty, price: l.price })), disc: T.disc, method: t.method, given: g, custId: t.custId, note: [t.note, paidNote].filter(Boolean).join(" · "), orderId: t.orderId };
+    const body = { cid: t.cid, lines: t.lines.map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio, qty: l.qty, price: l.price })), disc: T.disc, points: T.pts || 0, method: t.method, given: g, custId: t.custId, note: [t.note, paidNote].filter(Boolean).join(" · "), orderId: t.orderId };
     let inv;
     if (APP && S.offline) inv = await offSale(body, t, T);
     else {
