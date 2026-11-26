@@ -424,7 +424,10 @@ func (db *DB) DisposeExpired(pids []string, u *User) (*Count, error) {
 
 // ---------- sổ quỹ & công nợ ----------
 
-func (db *DB) CreateCash(e CashEntry, u *User) (*CashEntry, error) {
+func (db *DB) CreateCash(e CashEntry, u *User) (*CashEntry, error) { return db.CreateCashCap(e, u, false) }
+
+// CreateCashCap: capDebt = true thì phiếu thu nợ khách không được lớn hơn số khách đang nợ (chặn gõ thừa số 0).
+func (db *DB) CreateCashCap(e CashEntry, u *User, capDebt bool) (*CashEntry, error) {
 	var out *CashEntry
 	err := db.Do(func(s *State, t *Tx) error {
 		e.Amount = r0(e.Amount)
@@ -444,7 +447,12 @@ func (db *DB) CreateCash(e CashEntry, u *User) (*CashEntry, error) {
 		if e.PartyType != "" {
 			if party == nil { return uerr("Không tìm thấy đối tượng công nợ") }
 			e.PartyName = party.Name
+			if capDebt && e.PartyType == "cust" && e.Kind == "thu" {
+				if party.Debt <= 0 { return uerr("%s hiện không còn nợ", party.Name) }
+				if e.Amount > party.Debt+0.5 { return uerr("%s chỉ đang nợ %s, không thu quá số nợ", party.Name, money(party.Debt)) }
+			}
 			party.Debt = r0(party.Debt + debtEffect(e))
+			e.DebtAfter = party.Debt
 			party.Last = e.Time
 			if e.PartyType == "cust" { t.put("customer", party.ID, party) } else { t.put("supplier", party.ID, party) }
 		}

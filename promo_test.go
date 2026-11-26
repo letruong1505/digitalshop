@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -80,4 +82,27 @@ func TestOfflineInvoice(t *testing.T) {
 	req2 := req; req2.CID = "off2"; req2.Time = time.Now().Add(-90 * 24 * time.Hour).UnixMilli()
 	inv2, _ := db.CreateInvoice(req2, u)
 	if inv2.Time < time.Now().Add(-time.Minute).UnixMilli() { t.Fatal("giờ quá cũ phải bị bỏ qua, dùng giờ hiện tại") }
+}
+
+func TestCustomPermsAndLAN(t *testing.T) {
+	u := &User{Role: "cashier", Perms: cleanPerms("cashier", []string{"sell", "stock", "admin", "zzz"})}
+	if !u.can("sell") || !u.can("stock") || u.can("admin") || u.can("money") { t.Fatalf("perms=%v", u.perms()) }
+	if cleanPerms("cashier", []string{"sell"}) != nil { t.Fatal("giong mac dinh phai tra nil") }
+	z := &User{Role: "cashier", Perms: cleanPerms("cashier", []string{})}
+	if z.Perms == nil || z.can("sell") { t.Fatal("khong quyen nao phai giu rong, khong ve mac dinh") }
+	if (&User{Role: "owner", Perms: []string{}}).can("admin") == false { t.Fatal("chu luon day du") }
+	mk := func(addr string, h map[string]string) *http.Request {
+		r := httptest.NewRequest("GET", "/", nil); r.RemoteAddr = addr
+		for k, v := range h { r.Header.Set(k, v) }
+		return r
+	}
+	cases := []struct{ addr string; h map[string]string; want bool }{
+		{"192.168.1.20:5000", nil, true}, {"127.0.0.1:5000", nil, true}, {"10.0.0.5:1", nil, true},
+		{"8.8.8.8:1", nil, false}, {"100.64.1.2:1", nil, false}, {"[2001:db8::1]:1", nil, false},
+		{"127.0.0.1:1", map[string]string{"Cf-Connecting-Ip": "113.1.2.3"}, false},
+		{"127.0.0.1:1", map[string]string{"X-Forwarded-For": "113.1.2.3, 10.0.0.1"}, false},
+		{"127.0.0.1:1", map[string]string{"X-Forwarded-For": "192.168.1.9"}, true},
+		{"8.8.8.8:1", map[string]string{"X-Forwarded-For": "192.168.1.9"}, false},
+	}
+	for _, c := range cases { if got := isLANReq(mk(c.addr, c.h)); got != c.want { t.Fatalf("%s %v = %v", c.addr, c.h, got) } }
 }

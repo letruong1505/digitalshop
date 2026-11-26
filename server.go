@@ -110,6 +110,7 @@ func (s *Server) user(r *http.Request) *User {
 	if !ok || time.Now().After(ss.exp) { return nil }
 	var u *User
 	s.db.Read(func(st *State) { if x := st.Users[ss.uid]; x != nil { cp := *x; u = &cp } })
+	if u != nil && u.LanOnly && !isLANReq(r) { return nil }
 	return u
 }
 
@@ -119,7 +120,7 @@ func (s *Server) auth(perm string, h handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u := s.user(r)
 		if u == nil { fail(w, 401, "Phiên đăng nhập đã hết, hãy nhập lại mã PIN"); return }
-		if !u.can(perm) { fail(w, 403, "Vai trò "+strings.ToLower(roleNames[normRole(u.Role)])+" không có quyền làm thao tác này. Nhờ chủ cửa hàng hỗ trợ."); return }
+		if !u.can(perm) { fail(w, 403, "Tài khoản "+u.Name+" không có quyền làm thao tác này. Nhờ chủ cửa hàng hỗ trợ."); return }
 		h(w, r, u)
 	}
 }
@@ -206,9 +207,11 @@ func (s *Server) routes() {
 		s.sessMu.Unlock()
 		if len(recent) >= 5 { fail(w, 429, "Nhập sai quá nhiều lần. Đợi 1 phút rồi thử lại"); return }
 		var uid string
+		var lanOnly bool
 		s.db.Read(func(st *State) {
-			for _, u := range st.Users { if hashPin(u.Salt, req.Pin) == u.Hash { uid = u.ID } }
+			for _, u := range st.Users { if hashPin(u.Salt, req.Pin) == u.Hash { uid, lanOnly = u.ID, u.LanOnly } }
 		})
+		if uid != "" && lanOnly && !isLANReq(r) { fail(w, 403, "Tài khoản này chỉ đăng nhập được khi dùng mạng wifi/LAN của cửa hàng"); return }
 		if uid == "" {
 			s.sessMu.Lock(); s.fails[ip] = append(s.fails[ip], time.Now()); s.sessMu.Unlock()
 			fail(w, 400, "Mã PIN không đúng")
@@ -272,8 +275,12 @@ func (s *Server) routes() {
 			inNew := 0
 			for _, x := range st.InInvs { if x.Status == "new" { inNew++ } }
 			out["inNew"] = inNew
-			us := []map[string]string{}
-			for _, x := range st.Users { us = append(us, map[string]string{"id": x.ID, "name": x.Name, "role": x.Role}) }
+			us := []map[string]any{}
+			for _, x := range st.Users {
+				e := map[string]any{"id": x.ID, "name": x.Name, "role": x.Role}
+				if u.can("admin") { e["perms"] = x.perms(); e["custom"] = x.Perms != nil; e["lanOnly"] = x.LanOnly }
+				us = append(us, e)
+			}
 			out["users"] = us
 			out["version"] = s.db.Version
 		})
@@ -549,10 +556,14 @@ func (s *Server) routes() {
 
 	// ---- sổ quỹ ----
 	m.HandleFunc("POST /api/cash", s.auth("money", func(w http.ResponseWriter, r *http.Request, u *User) {
-		var e CashEntry
-		if err := readJSON(r, &e); err != nil { failErr(w, err); return }
+		var req struct {
+			CashEntry
+			CapDebt bool `json:"capDebt"`
+		}
+		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
+		e := req.CashEntry
 		if e.Kind == "adj" && !u.can("manage") { fail(w, 403, "Chỉ chủ cửa hàng được điều chỉnh công nợ"); return }
-		out, err := s.db.CreateCash(e, u)
+		out, err := s.db.CreateCashCap(e, u, req.CapDebt)
 		if err != nil { failErr(w, err); return }
 		writeJSON(w, out)
 	}))
@@ -736,7 +747,11 @@ func (s *Server) routes() {
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
 	m.HandleFunc("POST /api/users", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
-		var req struct{ ID, Name, Role, Pin string }
+		var req struct {
+			ID, Name, Role, Pin string
+			Perms               []string
+			LanOnly             bool
+		}
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		err := s.db.Do(func(st *State, t *Tx) error {
 			req.Name = strings.TrimSpace(req.Name)
@@ -759,6 +774,9 @@ func (s *Server) routes() {
 				if n <= 1 { return uerr("Cần giữ ít nhất một tài khoản chủ cửa hàng") }
 			}
 			x.Name, x.Role = req.Name, req.Role
+			x.Perms, x.LanOnly = nil, req.LanOnly
+			if req.Role != "owner" && req.Perms != nil { x.Perms = cleanPerms(req.Role, req.Perms) }
+			if x.ID == u.ID && x.LanOnly && !isLANReq(r) { return uerr("Không tự khóa chính mình: đang đăng nhập từ xa mà đặt chỉ mạng nội bộ") }
 			st.Users[x.ID] = x
 			t.put("user", x.ID, x)
 			return nil

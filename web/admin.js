@@ -54,9 +54,9 @@ async function partyDetail(kind, id) {
     <div class="sumrow"><div><div class="lbl">${isC ? "Khách đang nợ" : "Mình đang nợ"}</div><div class="due" style="color:${p.debt > 0 ? "var(--red)" : "var(--green-text)"}">${money(p.debt)}</div></div>
       <div style="text-align:right">${p.phone ? `<div class="num" style="user-select:all;font-weight:700">${esc(p.phone)}</div>` : ""}<div class="ps">${esc(p.code)}${p.addr ? " · " + esc(p.addr) : ""}</div><div class="ps">${esc(p.note || "")}</div></div></div>
     <div class="card stack" style="padding:12px">
-      <div class="field"><label for="pdAmt">${isC ? "Khách trả nợ" : "Trả nợ nhà cung cấp"}</label><div class="row"><input id="pdAmt" class="in num grow" inputmode="numeric" placeholder="Số tiền" style="min-width:140px">
+      ${isC ? (!can("money") ? "" : p.debt > 0 ? `<div class="row"><button class="btn pri grow" data-act="debtPay" data-id="${esc(id)}">Thu nợ khách</button></div>` : `<div class="ps">Khách không còn nợ.</div>`) : `<div class="field"><label for="pdAmt">Trả nợ nhà cung cấp</label><div class="row"><input id="pdAmt" class="in num grow" inputmode="numeric" placeholder="Số tiền" style="min-width:140px">
         <select id="pdMethod" class="in" style="width:auto"><option value="cash">Tiền mặt</option><option value="bank">Chuyển khoản</option></select>
-        <button class="btn" data-act="pdAll" data-v="${Math.max(0, p.debt)}">Hết nợ</button><button class="btn pri" data-act="pdPay" data-k="${kind}" data-id="${esc(id)}">Ghi nhận</button></div></div>
+        <button class="btn" data-act="pdAll" data-v="${Math.max(0, p.debt)}">Hết nợ</button><button class="btn pri" data-act="pdPay" data-k="${kind}" data-id="${esc(id)}">Ghi nhận</button></div></div>`}
       ${isOwner() ? `<details><summary class="ps" style="cursor:pointer">Điều chỉnh công nợ (không qua tiền)</summary><div class="row" style="margin-top:8px"><input id="pdAdj" class="in num" style="width:150px" inputmode="numeric" placeholder="+ hoặc − số tiền"><input id="pdAdjNote" class="in grow" placeholder="Lý do, vd ghi nợ cũ, xóa nợ"><button class="btn" data-act="pdAdj" data-k="${kind}" data-id="${esc(id)}">Điều chỉnh</button></div></details>` : ""}
     </div>
     <div class="row">${isC && p.debt > 0 ? `<button class="btn sm" data-act="remind" data-id="${esc(id)}">Sao chép tin nhắn nhắc nợ</button>${st.acct ? `<button class="btn sm" data-act="debtQR" data-id="${esc(id)}">Mã QR trả nợ</button>` : ""}` : ""}
@@ -72,6 +72,62 @@ async function partyDetail(kind, id) {
     return `<tr class="${x.void ? "void" : ""}"><td class="num ps" style="white-space:nowrap">${dt(x.time)}</td><td>${what}</td><td class="r num" style="color:${eff > 0 ? "var(--red)" : eff < 0 ? "var(--green-text)" : "inherit"}"><b>${eff ? (eff > 0 ? "+" : "") + fmt(eff) : ""}</b></td>
       <td class="r">${x.type === "cash" && !x.void && isOwner() ? `<button class="btn sm ghost" data-act="cashVoid" data-id="${esc(x.id)}" data-back="${kind}:${esc(id)}" data-confirm="Hủy phiếu?">Hủy</button>` : ""}</td></tr>`;
   }).join("")}</tbody></table></div>` : `<div class="ps">Chưa có giao dịch.</div>`;
+}
+
+/* ---------- thu nợ khách: số tiền, trừ nợ, tiền mặt / chuyển khoản, in phiếu thu ---------- */
+let DP = null;
+function debtPayHtml() {
+  const c = S.customers.get(DP.id), st = S.settings, a = DP.amount, left = c.debt - a, bank = DP.method === "bank" && st.acct;
+  const bad = a > c.debt + 0.5;
+  return `<div class="sheet-h"><h2>Thu nợ · ${esc(c.name)}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div class="sumrow"><div><div class="lbl">Khách đang nợ</div><div class="due" style="color:var(--red)">${money(c.debt)}</div></div><div class="ps" style="text-align:right">${esc(c.code)}${c.phone ? "<br>" + esc(c.phone) : ""}</div></div>
+    <div class="stack">
+      <div class="field"><label for="dpAmt">Số tiền khách trả lần này</label><div class="row"><input id="dpAmt" class="in num grow" inputmode="numeric" placeholder="vd 500.000" value="${a ? fmt(a) : ""}" style="font-size:20px;font-weight:700;min-width:160px"><button type="button" class="btn" data-act="dpAll">Trả hết nợ</button></div></div>
+      <div class="field"><label>Hình thức thanh toán</label><div class="seg" role="group" aria-label="Hình thức">${[["cash", "Tiền mặt"], ["bank", "Chuyển khoản"]].map(([k, t]) => `<button type="button" data-act="dpMethod" data-v="${k}" aria-pressed="${DP.method === k}">${t}</button>`).join("")}</div></div>
+      <div class="card" id="dpSum" style="padding:12px;display:grid;gap:4px">${dpSumHtml(c, a, left, bad)}</div>
+      ${bank ? `<div id="dpQR" style="display:grid;place-items:center;gap:6px">${a > 0 && !bad ? `<div style="width:230px;background:#fff;padding:8px;border-radius:10px">${qrSvg(vietqr(a, c.code + " tra no"))}</div><div class="ps">${esc(st.bankName || "")} · ${esc(st.acct)} · ${esc(st.holder || "")}<br>Số tiền và nội dung đã điền sẵn trong mã QR. Chỉ bấm Ghi nhận khi tiền đã về tài khoản.</div>` : `<div class="ps">Nhập số tiền để hiện mã QR.</div>`}</div>` : DP.method === "bank" ? `<div class="ps">Chưa khai số tài khoản ở Cài đặt nên chưa có mã QR. Vẫn ghi nhận được.</div>` : ""}
+      <div class="field"><label for="dpNote">Ghi chú (không bắt buộc)</label><input id="dpNote" class="in" value="${esc(DP.note)}" placeholder="vd trả đợt 1"></div>
+      <div class="row"><span class="grow"></span><button type="button" class="btn" data-act="close">Hủy</button><button type="button" class="btn pri" data-act="dpSave" id="dpSave" ${a > 0 && !bad ? "" : "disabled"}>Ghi nhận ${a > 0 && !bad ? money(a) : ""}</button></div>
+    </div>`;
+}
+function dpSumHtml(c, a, left, bad) {
+  return `<div class="row" style="justify-content:space-between"><span>Nợ hiện tại</span><b class="num">${money(c.debt)}</b></div>
+    <div class="row" style="justify-content:space-between"><span>Khách trả (${DP.method === "bank" ? "chuyển khoản" : "tiền mặt"})</span><b class="num" style="color:var(--green-text)">− ${money(a || 0)}</b></div>
+    <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:6px"><span><b>Nợ còn lại sau khi thu</b></span><b class="num" style="font-size:18px;color:${bad ? "var(--red)" : left > 0 ? "var(--red)" : "var(--green-text)"}">${bad ? "Quá số nợ" : money(left)}</b></div>
+    ${bad ? `<div class="ps" style="color:var(--red)">Khách chỉ đang nợ ${money(c.debt)}, không nhập quá số này.</div>` : ""}`;
+}
+ACT.debtPay = b => { DP = { id: b.dataset.id, amount: 0, method: "cash", note: "" }; openSheet(debtPayHtml(), { focus: "#dpAmt" }); };
+ACT.dpAll = () => { DP.amount = Math.max(0, S.customers.get(DP.id).debt); dpRefresh(true); };
+ACT.dpMethod = b => { DP.method = b.dataset.v; DP.note = ($("#dpNote") || {}).value || ""; dpRefresh(true); };
+function dpRefresh(full) {
+  const c = S.customers.get(DP.id), a = DP.amount, left = c.debt - a, bad = a > c.debt + 0.5;
+  if (full) { $("#sheetCard").innerHTML = debtPayHtml(); const i = $("#dpAmt"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } return; }
+  $("#dpSum").innerHTML = dpSumHtml(c, a, left, bad);
+  const sv = $("#dpSave"); sv.disabled = !(a > 0 && !bad); sv.textContent = "Ghi nhận " + (a > 0 && !bad ? money(a) : "");
+  const q = $("#dpQR"); if (q) { const st = S.settings; q.innerHTML = a > 0 && !bad ? `<div style="width:230px;background:#fff;padding:8px;border-radius:10px">${qrSvg(vietqr(a, c.code + " tra no"))}</div><div class="ps">${esc(st.bankName || "")} · ${esc(st.acct)} · ${esc(st.holder || "")}<br>Số tiền và nội dung đã điền sẵn trong mã QR. Chỉ bấm Ghi nhận khi tiền đã về tài khoản.</div>` : `<div class="ps">Nhập số tiền để hiện mã QR.</div>`; }
+}
+ON_INPUT.dpAmt = el => { DP.amount = parseMoney(el.value); dpRefresh(false); };
+ACT.dpSave = async b => {
+  DP.note = ($("#dpNote") || {}).value || ""; const c = S.customers.get(DP.id), a = DP.amount, method = DP.method, note = DP.note.trim();
+  if (!(a > 0)) return toast("Nhập số tiền khách trả", true);
+  b.disabled = true;
+  const r = await run(() => api("POST", "/api/cash", { kind: "thu", cat: "Thu nợ khách", partyType: "cust", partyId: DP.id, amount: a, method, note, capDebt: true }));
+  if (!r) { b.disabled = false; return; }
+  await refresh(true);
+  DP.done = { e: r, name: c.name, code: c.code, phone: c.phone, before: r.debtAfter + a };
+  openSheet(`<div class="sheet-h"><h2>Đã thu nợ</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div style="display:grid;gap:6px;text-align:center;padding:8px 0"><div style="font-size:42px;color:var(--green-text)">✓</div><b style="font-size:22px">${money(a)}</b><div class="ps">${esc(c.name)} · ${method === "bank" ? "chuyển khoản" : "tiền mặt"} · phiếu ${esc(r.code)}</div>
+      <div>Nợ trước ${money(r.debtAfter + a)} → <b style="color:${r.debtAfter > 0 ? "var(--red)" : "var(--green-text)"}">còn ${money(r.debtAfter)}</b></div></div>
+    <div class="row"><span class="grow"></span><button class="btn" data-act="dpPrint">${icon("print")} In phiếu thu</button><button class="btn pri" data-act="close">Xong</button></div>`);
+};
+ACT.dpPrint = () => { if (DP && DP.done) printHtml(debtReceiptHtml(DP.done)); };
+function debtReceiptHtml(d) {
+  const st = S.settings, e = d.e, row = (k, v, bold) => `<tr><td>${k}</td><td class="r">${bold ? "<b>" : ""}${v}${bold ? "</b>" : ""}</td></tr>`;
+  return `<div class="rc ${st.paper === "58" ? "p58" : st.paper === "a5" ? "a5" : ""}"><div class="c shop">${esc(st.shopName || "")}</div>${st.addr ? `<div class="c">${esc(st.addr)}</div>` : ""}${st.phone ? `<div class="c">ĐT ${esc(st.phone)}</div>` : ""}<hr>
+    <div class="c big">PHIẾU THU NỢ</div><div class="c">${esc(e.code)} · ${dt(e.time)}</div><hr>
+    <div>Khách hàng: <b>${esc(d.name)}</b></div>${d.phone ? `<div>Điện thoại: ${esc(d.phone)}</div>` : ""}
+    <table>${row("Nợ trước khi thu", money(d.before))}${row("Số tiền thu", money(e.amount), true)}${row("Hình thức", e.method === "bank" ? "Chuyển khoản" : "Tiền mặt")}${row("Nợ còn lại", money(e.debtAfter), true)}</table>
+    ${e.note ? `<div>Ghi chú: ${esc(e.note)}</div>` : ""}<div>Thu ngân: ${esc(e.staff || "")}</div><hr><div class="c">${esc(st.footer || "Cảm ơn quý khách")}</div></div>`;
 }
 ACT.pdAll = b => { $("#pdAmt").value = fmt(+b.dataset.v); };
 ACT.pdPay = async b => {
@@ -424,22 +480,43 @@ VIEWS.settings = function () {
 };
 function usersHtml() {
   const own = isAdmin();
-  return `<div class="tbl"><table><tbody>${S.users.map(u => `<tr><td class="pn">${esc(u.name)}${u.id === S.me.id ? ' <span class="pill green">bạn</span>' : ""}</td><td>${ROLE_NAME[u.role] || "Thu ngân"}</td>
+  return `<div class="tbl"><table><tbody>${S.users.map(u => `<tr><td class="pn">${esc(u.name)}${u.id === S.me.id ? ' <span class="pill green">bạn</span>' : ""}</td><td>${ROLE_NAME[u.role] || "Thu ngân"}${u.custom ? ' <span class="pill amber">quyền riêng</span>' : ""}${own && u.lanOnly ? ' <span class="pill mute">chỉ mạng nội bộ</span>' : ""}</td>
     <td class="r">${own || u.id === S.me.id ? `<button class="btn sm" data-act="userEdit" data-id="${esc(u.id)}">Đổi PIN / sửa</button>` : ""} ${own && u.id !== S.me.id ? `<button class="btn sm danger" data-act="userDel" data-id="${esc(u.id)}" data-confirm="Xóa?">Xóa</button>` : ""}</td></tr>`).join("")}</tbody></table></div>
-    ${own ? `<div><button class="btn sm" data-act="userEdit" data-id="">+ Thêm nhân viên</button></div><p class="ps" style="margin:0">Nhân viên bán được hàng, nhận đơn đặt, thu nợ, nhập hàng, kiểm kho. Chỉ chủ cửa hàng được sửa giá, xóa hàng, hủy hóa đơn, xem lãi, nhập dữ liệu và cài đặt.</p>` : ""}`;
+    ${own ? `<div><button class="btn sm" data-act="userEdit" data-id="">+ Thêm nhân viên</button></div><p class="ps" style="margin:0">Mỗi nhân viên có vai trò (bộ quyền chọn sẵn) và có thể tick thêm hoặc bớt từng quyền. Chỉ chủ cửa hàng được vào Cài đặt, người dùng, bản quyền và sao lưu.</p>` : ""}`;
 }
 ACT.userEdit = b => {
   const u = S.users.find(x => x.id === b.dataset.id);
   if (!isAdmin() && (!u || u.id !== S.me.id)) return;
+  const adm = isAdmin(), role0 = u ? (ROLE_NAME[u.role] ? u.role : "cashier") : "cashier";
+  const have = new Set(u && u.perms ? u.perms : PERM_PRESET[role0]);
   openSheet(`<div class="sheet-h"><h2>${u ? "Sửa " + esc(u.name) : "Thêm nhân viên"}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
     <form id="uForm" class="grid2" autocomplete="off"><div class="field"><label for="u-name">Tên</label><input id="u-name" class="in" required value="${esc(u?.name || "")}"></div>
-    <div class="field"><label for="u-role">Vai trò</label><select id="u-role" class="in" ${isAdmin() ? "" : "disabled"}>${["cashier", "warehouse", "accountant", "manager", "owner"].map(k => `<option value="${k}" ${(u ? (ROLE_NAME[u.role] ? u.role : "cashier") : "cashier") === k ? "selected" : ""}>${ROLE_NAME[k]}</option>`).join("")}</select><div class="ps" style="margin-top:4px">Thu ngân: chỉ bán hàng. Thủ kho: hàng hóa, nhập hàng, kiểm kho. Kế toán: sổ quỹ, công nợ, báo cáo, hóa đơn đầu vào. Quản lý: làm được mọi việc trừ cài đặt, người dùng và bản quyền.</div></div>
+    <div class="field"><label for="u-role">Vai trò (chọn sẵn bộ quyền)</label><select id="u-role" class="in" ${adm ? "" : "disabled"}>${["cashier", "warehouse", "accountant", "manager", "owner"].map(k => `<option value="${k}" ${role0 === k ? "selected" : ""}>${ROLE_NAME[k]}</option>`).join("")}</select></div>
+    ${adm ? `<div class="field full"><label>Quyền của nhân viên này</label><div id="u-perms" class="stack" style="gap:6px">${PERM_LABEL.map(([k, t]) => `<label class="check"><input type="checkbox" data-p="${k}" ${have.has(k) ? "checked" : ""}> <span>${t}</span></label>`).join("")}</div>
+      <div class="ps" id="u-pnote" style="margin-top:4px"></div></div>
+    <div class="field full"><label>Nơi được đăng nhập</label>
+      <label class="check"><input type="radio" name="u-net" value="lan" ${(u ? u.lanOnly : true) ? "checked" : ""}> <span><b>Chỉ trong mạng nội bộ</b> (wifi/LAN của cửa hàng)</span></label>
+      <label class="check"><input type="radio" name="u-net" value="any" ${(u ? u.lanOnly : true) ? "" : "checked"}> <span><b>Cho xem từ xa</b> (qua internet, VPN, tunnel đến máy chủ)</span></label>
+      <div class="ps" style="margin-top:4px">Phần mềm phân biệt theo địa chỉ IP của thiết bị. Muốn dùng từ xa, máy chủ phải truy cập được từ ngoài (VPN, Cloudflare Tunnel…). Nên để thu ngân ở chế độ chỉ mạng nội bộ.</div></div>` : ""}
     <div class="field full"><label for="u-pin">${u ? "Mã PIN mới (để trống nếu giữ nguyên)" : "Mã PIN (4–8 số)"}</label><input id="u-pin" class="in num" inputmode="numeric" type="password" ${u ? "" : "required"} minlength="4" maxlength="8"></div>
     <div class="row full"><span class="grow"></span><button type="button" class="btn" data-act="close">Hủy</button><button class="btn pri">Lưu</button></div></form>`, { focus: "#u-name" });
+  const boxes = () => [...document.querySelectorAll("#u-perms input[data-p]")];
+  const note = () => {
+    const el = $("#u-pnote"); if (!el) return;
+    const r = $("#u-role").value, own = r === "owner";
+    boxes().forEach(x => { x.disabled = own; if (own) x.checked = true; });
+    const cur = boxes().filter(x => x.checked).map(x => x.dataset.p).sort().join(), def = PERM_PRESET[r].slice().sort().join();
+    el.textContent = own ? "Chủ cửa hàng luôn có đủ quyền." : cur === def ? "Đúng bộ quyền của vai trò này." : "Đã tùy chỉnh: khác với bộ quyền mặc định của vai trò.";
+  };
+  if (adm) {
+    $("#u-role").addEventListener("change", () => { const p = new Set(PERM_PRESET[$("#u-role").value]); boxes().forEach(x => { x.checked = p.has(x.dataset.p); }); note(); });
+    $("#u-perms").addEventListener("change", note); note();
+  }
   $("#uForm").addEventListener("submit", async e => {
     e.preventDefault();
-    if (!isAdmin()) return toast("Nhờ chủ cửa hàng đổi PIN giúp", true);
-    const r = await run(() => api("POST", "/api/users", { id: u?.id || "", name: $("#u-name").value, role: $("#u-role").value, pin: $("#u-pin").value }), "Đã lưu");
+    if (!adm) return toast("Nhờ chủ cửa hàng đổi PIN giúp", true);
+    const perms = boxes().filter(x => x.checked).map(x => x.dataset.p), lanOnly = (document.querySelector('input[name="u-net"]:checked') || {}).value === "lan";
+    const r = await run(() => api("POST", "/api/users", { id: u?.id || "", name: $("#u-name").value, role: $("#u-role").value, perms, lanOnly, pin: $("#u-pin").value }), "Đã lưu");
     if (r) { closeSheet(); await refresh(true); }
   });
 };

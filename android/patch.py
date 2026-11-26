@@ -46,4 +46,14 @@ x = sx.read_text(encoding="utf-8")
 x = re.sub(r"(<string name=\"app_name\">)[^<]*(</string>)", r"\1Digital Shop\2", x)
 x = re.sub(r"(<string name=\"title_activity_main\">)[^<]*(</string>)", r"\1Digital Shop\2", x)
 sx.write_text(x, encoding="utf-8")
+# 5. Biểu tượng ứng dụng: dùng cùng hình với bản Windows (installer/icon.png), đã dựng sẵn trong android/icons/res
+import shutil
+res = root / "app/src/main/res"
+for d in res.glob("mipmap-*"):
+    for n in ("ic_launcher.png", "ic_launcher_round.png", "ic_launcher_foreground.png", "ic_launcher.webp", "ic_launcher_round.webp", "ic_launcher_foreground.webp"):
+        (d / n).unlink(missing_ok=True)
+for d in res.glob("drawable*"):
+    for n in ("ic_launcher_foreground.xml", "ic_launcher_background.xml"):
+        (d / n).unlink(missing_ok=True)
+shutil.copytree(pathlib.Path("icons/res"), res, dirs_exist_ok=True)
 print("Đã chỉnh dự án Android: phiên bản", ver, "mã", code)

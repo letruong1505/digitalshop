@@ -65,6 +65,8 @@ const NAV = [
   ["import", "Nhập từ Excel", "import"], ["settings", "Cài đặt", "admin"],
 ];
 const ROLE_NAME = { owner: "Chủ cửa hàng", manager: "Quản lý", cashier: "Thu ngân", warehouse: "Thủ kho", accountant: "Kế toán" };
+const PERM_PRESET = { owner: ["manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price"], manager: ["manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price"], cashier: ["sell"], warehouse: ["stock", "cost"], accountant: ["money", "report", "tax", "cost"] };
+const PERM_LABEL = [["sell", "Bán hàng, đơn đặt"], ["stock", "Hàng hóa, nhập hàng, kiểm kho"], ["money", "Sổ quỹ, công nợ, thu nợ khách"], ["report", "Báo cáo, xuất Excel"], ["cost", "Xem giá vốn và lợi nhuận"], ["price", "Sửa giá khi bán"], ["tax", "Hóa đơn đầu vào"], ["import", "Nhập dữ liệu từ Excel"], ["manage", "Xóa, hủy hóa đơn, điều chỉnh công nợ"]];
 const can = p => !p || (S.me && (S.me.perms || []).some(x => p.split("|").includes(x)));
 const navOK = n => can(n[2]);
 

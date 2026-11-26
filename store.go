@@ -166,6 +166,7 @@ type CashEntry struct {
 	Note      string  `json:"note"`
 	Staff     string  `json:"staff"`
 	Void      bool    `json:"void"`
+	DebtAfter float64 `json:"debtAfter"` // công nợ của khách / nhà cung cấp sau phiếu này (để in lại phiếu thu)
 }
 
 type OrderLine struct {
@@ -200,6 +201,8 @@ type User struct {
 	Role string `json:"role"` // owner | staff
 	Salt string `json:"salt"`
 	Hash string `json:"hash"`
+	Perms   []string `json:"perms"`   // quyền chọn riêng; trống = theo vai trò
+	LanOnly bool     `json:"lanOnly,omitempty"` // chỉ đăng nhập được từ mạng nội bộ của cửa hàng
 }
 
 type Settings struct {

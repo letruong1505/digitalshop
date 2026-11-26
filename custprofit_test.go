@@ -20,3 +20,16 @@ func TestCustomerProfitRank(t *testing.T) {
 	r = db.Report("2000-01-01", "2999-12-31", false)
 	if r.Custs[0]["name"] != "Đại lý A" || r.Custs[0]["profit"].(float64) != 0 { t.Fatalf("khong co quyen xem gia von: %v", r.Custs) }
 }
+
+func TestDebtPayCap(t *testing.T) {
+	db, err := OpenDB(t.TempDir())
+	if err != nil { t.Fatal(err) }
+	u := &User{ID: "u", Name: "Chủ", Role: "owner"}
+	c, _ := db.SaveParty("cust", Party{Name: "Chị Hoa"})
+	if _, err := db.CreateCash(CashEntry{Kind: "adj", PartyType: "cust", PartyID: c.ID, Amount: 500000}, u); err != nil { t.Fatal(err) }
+	if _, err := db.CreateCashCap(CashEntry{Kind: "thu", PartyType: "cust", PartyID: c.ID, Amount: 600000}, u, true); err == nil { t.Fatal("thu qua so no phai bi chan") }
+	e, err := db.CreateCashCap(CashEntry{Kind: "thu", Method: "bank", PartyType: "cust", PartyID: c.ID, Amount: 200000}, u, true)
+	if err != nil || e.DebtAfter != 300000 || e.Method != "bank" { t.Fatalf("%v %+v", err, e) }
+	if _, err := db.CreateCashCap(CashEntry{Kind: "thu", PartyType: "cust", PartyID: c.ID, Amount: 300000}, u, true); err != nil { t.Fatal(err) }
+	if _, err := db.CreateCashCap(CashEntry{Kind: "thu", PartyType: "cust", PartyID: c.ID, Amount: 1}, u, true); err == nil { t.Fatal("het no thi khong thu them") }
+}
