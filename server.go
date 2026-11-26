@@ -57,6 +57,7 @@ func NewServer(db *DB, port int) *Server {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if corsHandle(w, r) { return }
 	if msg := licGate(r.Method, r.URL.Path); msg != "" { fail(w, 402, msg); return }
 	s.mux.ServeHTTP(w, r)
 }
@@ -97,10 +98,14 @@ func randHex(n int) string { b := make([]byte, n); rand.Read(b); return hex.Enco
 func clientIP(r *http.Request) string { h, _, _ := net.SplitHostPort(r.RemoteAddr); return h }
 
 func (s *Server) user(r *http.Request) *User {
-	c, err := r.Cookie("thx")
-	if err != nil { return nil }
+	tok := bearerToken(r)
+	if tok == "" {
+		c, err := r.Cookie("thx")
+		if err != nil { return nil }
+		tok = c.Value
+	}
 	s.sessMu.Lock()
-	ss, ok := s.sessions[c.Value]
+	ss, ok := s.sessions[tok]
 	s.sessMu.Unlock()
 	if !ok || time.Now().After(ss.exp) { return nil }
 	var u *User
@@ -119,12 +124,13 @@ func (s *Server) auth(perm string, h handler) http.HandlerFunc {
 	}
 }
 
-func (s *Server) login(w http.ResponseWriter, uid string) {
+func (s *Server) login(w http.ResponseWriter, uid string) string {
 	tok := randHex(24)
 	s.sessMu.Lock()
 	s.sessions[tok] = session{uid: uid, exp: time.Now().Add(30 * 24 * time.Hour)}
 	s.sessMu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: "thx", Value: tok, Path: "/", HttpOnly: true, MaxAge: 30 * 86400, SameSite: http.SameSiteLaxMode})
+	return tok
 }
 
 func lanAddrs(port int) []string {
@@ -184,7 +190,8 @@ func (s *Server) routes() {
 			return nil
 		})
 		if err != nil { failErr(w, err); return }
-		s.login(w, uid)
+		tok := s.login(w, uid)
+		if r.Header.Get("X-DS-Client") == "app" { writeJSON(w, map[string]any{"ok": true, "token": tok}); return } // ứng dụng Android lưu token thay cookie
 		writeJSON(w, map[string]bool{"ok": true})
 	})
 
@@ -207,12 +214,14 @@ func (s *Server) routes() {
 			fail(w, 400, "Mã PIN không đúng")
 			return
 		}
-		s.login(w, uid)
+		tok := s.login(w, uid)
+		if r.Header.Get("X-DS-Client") == "app" { writeJSON(w, map[string]any{"ok": true, "token": tok}); return } // ứng dụng Android lưu token thay cookie
 		writeJSON(w, map[string]bool{"ok": true})
 	})
 
 	m.HandleFunc("POST /api/logout", func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie("thx"); err == nil { s.sessMu.Lock(); delete(s.sessions, c.Value); s.sessMu.Unlock() }
+		if t := bearerToken(r); t != "" { s.sessMu.Lock(); delete(s.sessions, t); s.sessMu.Unlock() }
 		http.SetCookie(w, &http.Cookie{Name: "thx", Value: "", Path: "/", MaxAge: -1})
 		writeJSON(w, map[string]bool{"ok": true})
 	})

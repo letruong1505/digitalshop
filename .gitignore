@@ -1,3 +1,9 @@
 dist/
 *.exe
 *.key
+android/node_modules/
+android/android/
+android/www/
+android/package-lock.json
+*.jks
+*.keystore

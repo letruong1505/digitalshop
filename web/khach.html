@@ -53,6 +53,7 @@ html,body{height:100%;margin:0;background:var(--cd-bg);color:var(--cd-ink);font-
 <div class="cd" id="cd"><div class="center"><div class="err">Đang kết nối…</div></div></div>
 <button class="fs" id="fs" type="button">Toàn màn hình</button>
 <script src="qrcode.js"></script>
+<a id="appcfg" href="http://localhost/?connect=1" hidden style="position:fixed;top:0;left:0;width:56px;height:56px;z-index:9;opacity:0" aria-label="Đổi cài đặt"></a>
 <script>
 "use strict";
 const NF = new Intl.NumberFormat("vi-VN");
@@ -107,6 +108,7 @@ setInterval(() => { const c = document.getElementById("clk"); if (c) c.textConte
 document.getElementById("fs").addEventListener("click", () => { const d = document.documentElement; (d.requestFullscreen ? d.requestFullscreen() : Promise.reject()).catch(() => {}); });
 document.addEventListener("fullscreenchange", () => { document.getElementById("fs").hidden = !!document.fullscreenElement; });
 try { navigator.wakeLock && navigator.wakeLock.request("screen").catch(() => {}); } catch (e) {}
+if (/DSApp/.test(navigator.userAgent)) document.getElementById("appcfg").hidden = false; // ứng dụng Android: chạm góc trên trái để đổi chế độ
 render(); loop();
 </script>
 </body>

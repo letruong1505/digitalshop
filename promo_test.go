@@ -64,3 +64,20 @@ func TestPromoAndTier(t *testing.T) {
 }
 
 func f100() *float64 { x := 100.0; return &x }
+
+func TestOfflineInvoice(t *testing.T) {
+	db, err := OpenDB(t.TempDir())
+	if err != nil { t.Fatal(err) }
+	u := &User{ID: "u", Name: "Thu ngân", Role: "cashier"}
+	a, _ := db.SaveProduct(ProductReq{Product: Product{Name: "Kẹo", Unit: "gói", Price: 5000, Cost: 3000}, SetStock: f100()}, &User{Role: "owner"})
+	when := time.Now().Add(-3 * time.Hour).UnixMilli()
+	req := SaleReq{CID: "off1", Lines: []Line{{PID: a.ID, Qty: 4, Price: 5000, Ratio: 1}}, Method: "cash", Given: 20000, Offline: true, Time: when, PromoDisc: 2000, PromoNote: "Giờ vàng"}
+	inv, err := db.CreateInvoice(req, u)
+	if err != nil { t.Fatal(err) }
+	if inv.Time != when || inv.Promo != 2000 || inv.Total != 18000 { t.Fatalf("hóa đơn ngoại tuyến: time=%v promo=%v total=%v", inv.Time, inv.Promo, inv.Total) }
+	again, _ := db.CreateInvoice(req, u) // đồng bộ lặp lại không tạo trùng
+	if again.ID != inv.ID || again.Code != inv.Code { t.Fatal("gửi lại phải trả đúng hóa đơn cũ") }
+	req2 := req; req2.CID = "off2"; req2.Time = time.Now().Add(-90 * 24 * time.Hour).UnixMilli()
+	inv2, _ := db.CreateInvoice(req2, u)
+	if inv2.Time < time.Now().Add(-time.Minute).UnixMilli() { t.Fatal("giờ quá cũ phải bị bỏ qua, dùng giờ hiện tại") }
+}

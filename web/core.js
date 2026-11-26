@@ -85,11 +85,17 @@ const ON_CHANGE = {};
 
 /* ---------- API ---------- */
 async function api(method, path, body, opt = {}) {
-  const init = { method, headers: {}, credentials: "same-origin" };
+  const init = { method, headers: {}, credentials: APP ? "omit" : "same-origin" };
   if (body instanceof FormData) init.body = body;
   else if (body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(body); }
-  let res;
-  try { res = await fetch(path, init); } catch (e) { throw new Error("Mất kết nối với máy chủ Digital Shop. Kiểm tra máy tính chính còn bật phần mềm không."); }
+  let res, tm;
+  if (APP) { // ứng dụng Android: đăng nhập bằng token, giới hạn thời gian chờ để biết sớm là mất mạng
+    const tk = store.get("tok", ""); if (tk) init.headers["Authorization"] = "Bearer " + tk;
+    if (path === "/api/login") init.headers["X-DS-Client"] = "app";
+    const ctl = new AbortController(); init.signal = ctl.signal; tm = setTimeout(() => ctl.abort(), opt.timeout || 10000);
+  }
+  try { res = await fetch(srvBase() + path, init); } catch (e) { const er = new Error("Mất kết nối với máy chủ Digital Shop. Kiểm tra máy tính chính còn bật phần mềm không."); er.net = true; throw er; }
+  finally { clearTimeout(tm); }
   if (res.status === 401 && !opt.noAuth) { showLogin(); throw new Error("Cần đăng nhập lại"); }
   const ct = res.headers.get("content-type") || "";
   const data = ct.includes("json") ? await res.json() : await res.text();
@@ -102,7 +108,17 @@ async function run(fn, okMsg) {
 }
 
 async function refresh(silent) {
-  const b = await api("GET", "/api/boot");
+  let b;
+  try { b = await api("GET", "/api/boot"); if (APP) { setOffline(false); offCacheBoot(b); } }
+  catch (e) { // ứng dụng Android: mất mạng thì dùng bản chụp dữ liệu lần cuối
+    if (APP && e.net) { b = await offLoadBoot(); if (!b) throw e; setOffline(true); } else throw e;
+  }
+  applyBoot(b);
+  if (!S.offline) { try { S.lic = await api("GET", "/api/license"); } catch (e) {} autoUpdCheck(); }
+  if (!silent) renderShell();
+  else render();
+}
+function applyBoot(b) {
   S.me = b.me; S.settings = b.settings || {}; S.hasKey = b.hasKey; S.hasPayKeys = b.hasPayKeys || {}; S.users = b.users || []; S.lan = b.lan || []; S.dataDir = b.dataDir; S.appVersion = b.appVersion || ""; S.inNew = b.inNew || 0; S.today = b.today || dkey();
   S.products = new Map((b.products || []).map(p => [p.id, p]));
   S.customers = new Map((b.customers || []).map(c => [c.id, c]));
@@ -110,10 +126,6 @@ async function refresh(silent) {
   S.orders = new Map((b.orders || []).map(o => [o.id, o]));
   S.pop = b.pop || {};
   S.version = b.version;
-  try { S.lic = await api("GET", "/api/license"); } catch (e) {}
-  autoUpdCheck();
-  if (!silent) renderShell();
-  else render();
 }
 
 let pollT;
@@ -123,8 +135,10 @@ function startPoll() {
     if (document.hidden) return;
     try {
       const r = await api("GET", "/api/version");
-      if (r.v !== S.version) await refresh(true);
-    } catch (e) {}
+      if (APP && S.offline) { setOffline(false); await refresh(true); }
+      else if (r.v !== S.version) await refresh(true);
+      if (APP) syncOutbox();
+    } catch (e) { if (APP && e.net) setOffline(true); }
   }, 3500);
 }
 
@@ -287,14 +301,20 @@ ACT.close = () => closeSheet();
 ACT.moreMenu = () => openSheet(`<div class="sheet-h"><h2>Chức năng</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
   <div class="grid2">${NAV.filter(navOK).map(([k, t]) => `<button class="btn" style="justify-content:flex-start" data-act="go" data-v="${k}">${icon(k)} ${t}</button>`).join("")}
   <button class="btn" style="justify-content:flex-start" data-act="logout">${icon("user")} Đăng xuất (${esc(S.me.name)})</button></div>`);
-ACT.logout = async () => { await api("POST", "/api/logout").catch(() => {}); closeSheet(); showLogin(); };
+ACT.logout = async () => { await api("POST", "/api/logout").catch(() => {}); store.set("tok", ""); closeSheet(); showLogin(); };
 
 /* ---------- đăng nhập / thiết lập lần đầu ---------- */
 let pinBuf = "";
 async function boot() {
+  if (APP && location.search.includes("connect=1")) { history.replaceState(null, "", location.pathname); return showConnect(); }
+  if (APP && !store.get("server", "")) return showConnect();
+  if (APP && store.get("mode", "sell") === "display") return openDisplayMode();
   let st;
-  try { st = await api("GET", "/api/status", undefined, { noAuth: true }); }
-  catch (e) { $("#app").innerHTML = `<div class="splash">${esc(e.message)}</div>`; return; }
+  try { st = await api("GET", "/api/status", undefined, { noAuth: true, timeout: 6000 }); }
+  catch (e) {
+    if (APP && e.net && store.get("tok", "") && await offLoadBoot()) { await enterApp(); return; } // mở app khi chưa có mạng: dùng dữ liệu lần cuối
+    $("#app").innerHTML = `<div class="splash">${esc(e.message)}${APP ? `<div style="margin-top:14px;display:flex;gap:8px;justify-content:center"><button class="btn pri" onclick="boot()">Thử lại</button><button class="btn" data-act="connectEdit">Đổi máy chủ</button></div>` : ""}</div>`; return;
+  }
   if (st.needSetup) return showSetup();
   if (!st.loggedIn) return showLogin(st.shopName);
   await enterApp();
@@ -348,6 +368,7 @@ ACT.pin = b => {
 async function doLogin(pin) {
   if (!pin) return;
   const r = await run(() => api("POST", "/api/login", { pin }, { noAuth: true }));
+  if (r && r.token) store.set("tok", r.token);
   if (r) await enterApp(); else { const pi = $("#pinIn"); if (pi) { pi.value = ""; pi.focus(); } }
 }
 

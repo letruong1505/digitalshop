@@ -1,0 +1,56 @@
+name: Phát hành Digital Shop Android
+
+# Chạy tay: GitHub → Actions → "Phát hành Digital Shop Android" → Run workflow.
+# Dựng APK ký sẵn rồi đưa lên Cloudflare R2 (cùng thư mục với bản Windows) và đính kèm vào lần chạy.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  R2_BUCKET: nam-linh-updates
+  R2_DIR: digitalshop
+  PUBLIC_BASE: https://pub-ccfe83f2b7834443814836e1985185b3.r2.dev
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Cài gói Android SDK
+        run: yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null
+      - name: Giải mã khóa ký
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          [ -n "$KS_B64" ] || { echo "Thiếu secret ANDROID_KEYSTORE_B64 (khóa ký APK)"; exit 1; }
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/digitalshop.jks"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/digitalshop.jks" >> "$GITHUB_ENV"
+      - name: Dựng APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: sh android/build.sh
+      - name: Đính kèm APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigitalShop-Android
+          path: dist/DigitalShop-Android-*.apk
+      - name: Đưa lên Cloudflare R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          F=$(ls dist/DigitalShop-Android-*.apk | head -1); N=$(basename "$F")
+          npx --yes wrangler@4 r2 object put "$R2_BUCKET/$R2_DIR/$N" --file "$F" --content-type application/vnd.android.package-archive --remote
+          echo "Tải APK: $PUBLIC_BASE/$R2_DIR/$N"

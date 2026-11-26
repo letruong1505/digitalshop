@@ -21,6 +21,7 @@ const promoSig = t => JSON.stringify([t.custId, t.lines.map(l => [l.pid, l.unit,
 function promoSync(t) {
   if (!(S.settings.promos || []).some(p => p.active) || !t.lines.length) { t.promo = null; t.promoSig = ""; return; }
   const sig = promoSig(t);
+  if (APP && S.offline) { t.promoSig = sig; t.promo = offPromo(t); return; } // mất mạng: tính khuyến mãi ngay trên máy
   if (t.promoSig === sig) return;
   t.promoSig = sig; clearTimeout(promoTimer);
   promoTimer = setTimeout(async () => {
@@ -246,9 +247,9 @@ function postDisplayPaid(inv) {
   api("POST", "/api/display", { status: "paid", total: inv.total, method: inv.bank ? "bank" : inv.debt && !inv.cash ? "debt" : "cash", change: inv.given > inv.total ? inv.given - inv.total : 0 }).catch(() => {});
   setTimeout(() => { if (!tabTotals(curTab()).n) postDisplay(true); }, 7000);
 }
-const displayURL = () => `${location.origin}/khach.html?k=${S.settings.displayKey || ""}`;
+const displayURL = () => `${APP ? srvBase() : location.origin}/khach.html?k=${S.settings.displayKey || ""}`;
 ACT.dispMenu = () => {
-  const lan = (S.lan[0] || location.origin) + "/khach.html?k=" + (S.settings.displayKey || "");
+  const lan = (APP ? srvBase() : (S.lan[0] || location.origin)) + "/khach.html?k=" + (S.settings.displayKey || "");
   openSheet(`<div class="sheet-h"><h2>Màn hình cho khách</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
     <label class="check"><input type="checkbox" id="dispOn" ${S.dispOn ? "checked" : ""}> Gửi hóa đơn đang bán ở máy này lên màn hình khách</label>
     <div class="grid2" style="align-items:start">
@@ -328,7 +329,13 @@ async function checkout() {
   const btn = $("#checkoutBtn"); if (btn) btn.disabled = true;
   try {
     const paidNote = t.method === "bank" && t.pay && t.pay.status === "paid" && t.pay.amount === T.total ? `CK đã xác nhận tự động (${t.pay.code})` : "";
-    const inv = await api("POST", "/api/invoices", { cid: t.cid, lines: t.lines.map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio, qty: l.qty, price: l.price })), disc: T.disc, method: t.method, given: g, custId: t.custId, note: [t.note, paidNote].filter(Boolean).join(" · "), orderId: t.orderId });
+    const body = { cid: t.cid, lines: t.lines.map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio, qty: l.qty, price: l.price })), disc: T.disc, method: t.method, given: g, custId: t.custId, note: [t.note, paidNote].filter(Boolean).join(" · "), orderId: t.orderId };
+    let inv;
+    if (APP && S.offline) inv = await offSale(body, t, T);
+    else {
+      try { inv = await api("POST", "/api/invoices", body); }
+      catch (e) { if (APP && e.net) { setOffline(true); t.promo = offPromo(t); inv = await offSale(body, t, tabTotals(t)); } else throw e; } // gửi lỗi mạng: lưu trên máy, đẩy sau (máy chủ tự bỏ qua nếu đã nhận)
+    }
     postDisplayPaid(inv);
     S.lastSale = inv;
     S.tabs.splice(S.tabIdx, 1);

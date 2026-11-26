@@ -1,0 +1,14 @@
+{
+  "appId": "vn.namlinh.digitalshop",
+  "appName": "Digital Shop",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "appendUserAgent": "DSApp",
+    "allowMixedContent": true
+  }
+}

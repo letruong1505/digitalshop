@@ -82,6 +82,11 @@ type SaleReq struct {
 	CustID  string  `json:"custId"`
 	Note    string  `json:"note"`
 	OrderID string  `json:"orderId"`
+	// Hóa đơn bán lúc ngoại tuyến trên Android: ghi đúng giờ đã bán và đúng số tiền khách đã trả
+	Offline   bool    `json:"offline"`
+	Time      int64   `json:"time"`
+	PromoDisc float64 `json:"promoDisc"`
+	PromoNote string  `json:"promoNote"`
 }
 
 func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
@@ -134,6 +139,13 @@ func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 		}
 		sub = r0(sub)
 		promo, hits := promoDisc(s, lines, req.CustID, time.Now())
+		saleTime := nowMs()
+		if req.Offline {
+			if req.Time > saleTime-30*24*3600*1000 && req.Time <= saleTime+5*60*1000 { saleTime = req.Time }
+			promo, hits = req.PromoDisc, nil
+			if promo < 0 { promo = 0 }
+			if strings.TrimSpace(req.PromoNote) != "" { hits = []PromoHit{{Name: strings.TrimSpace(req.PromoNote)}} }
+		}
 		if promo > sub { promo = sub }
 		disc := r0(req.Disc)
 		if disc < 0 { disc = 0 }
@@ -141,7 +153,7 @@ func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 		total := sub - disc - promo
 		promoNote := ""
 		for i, h := range hits { if i > 0 { promoNote += ", " }; promoNote += h.Name }
-		inv := &Invoice{ID: req.CID, Time: nowMs(), Lines: lines, Sub: sub, Disc: disc + promo, Promo: promo, PromoNote: promoNote, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
+		inv := &Invoice{ID: req.CID, Time: saleTime, Lines: lines, Sub: sub, Disc: disc + promo, Promo: promo, PromoNote: promoNote, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
 		if inv.ID == "" { inv.ID = newID() }
 		var cust *Party
 		if req.CustID != "" {
