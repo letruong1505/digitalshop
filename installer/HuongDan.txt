@@ -8,7 +8,7 @@ Phát triển bởi Nam Linh Group
      và tách đơn Zalo bằng AI (đều không bắt buộc).
 
 2. CÀI ĐẶT
-   - Chạy file TapHoaX-CaiDat-3.1.6.exe, bấm "Yes" khi Windows hỏi quyền quản trị.
+   - Chạy file TapHoaX-CaiDat-3.1.7.exe, bấm "Yes" khi Windows hỏi quyền quản trị.
    - Nếu Windows báo "Windows protected your PC": bấm "More info" → "Run anyway".
    - Đọc Điều khoản sử dụng, tích "Tôi đã đọc và đồng ý" rồi bấm Tiếp.
    - Chọn: biểu tượng trên màn hình, tự mở khi bật máy (nên chọn cho máy tính tiền).
@@ -49,6 +49,7 @@ Phát triển bởi Nam Linh Group
    - Tự báo khi tiền về (không bắt buộc): Cài đặt → "Tự xác nhận khi tiền chuyển khoản về",
      chọn SePay hoặc payOS, dán khóa API, bấm "Lưu và kiểm tra kết nối".
      · SePay: đăng ký my.sepay.vn, liên kết tài khoản ngân hàng, tạo API token.
+     · Bật "Đọc to khi tiền về": máy nối loa (cổng aux/Bluetooth) sẽ đọc "Đã nhận … đồng" mỗi khi SePay báo tiền vào. Cần giọng tiếng Việt trong Windows.
      · payOS: đăng ký payos.vn, tạo kênh thanh toán, lấy Client ID / API Key / Checksum Key.
    - Khi khách chuyển đúng số tiền, phần mềm kêu "ting", hiện "Đã nhận tiền" và có thể
      tự hoàn tất hóa đơn. Khách không được xóa nội dung chuyển khoản (mã TX...).
