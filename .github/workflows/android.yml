@@ -53,4 +53,7 @@ jobs:
         run: |
           F=$(ls dist/DigitalShop-Android-*.apk | head -1); N=$(basename "$F")
           npx --yes wrangler@4 r2 object put "$R2_BUCKET/$R2_DIR/$N" --file "$F" --content-type application/vnd.android.package-archive --remote
+          V=${N#DigitalShop-Android-}; V=${V%.apk}
+          printf '{"version":"%s","file":"%s"}\n' "$V" "$N" > dist/android-latest.json
+          npx --yes wrangler@4 r2 object put "$R2_BUCKET/$R2_DIR/android-latest.json" --file dist/android-latest.json --content-type application/json --remote
           echo "Tải APK: $PUBLIC_BASE/$R2_DIR/$N"
