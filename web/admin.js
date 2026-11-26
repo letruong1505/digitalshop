@@ -156,7 +156,7 @@ S.rpPeriod = "today"; S.rpCustom = null; S.rpOpen = null; S.rpTab = "sales";
 VIEWS.report = async function () {
   const [a, b] = periodRange(S.rpPeriod, S.rpCustom);
   $("#main").innerHTML = `<div class="page"><div class="head"><h1>Báo cáo</h1><a class="btn sm" href="/api/export/invoices?from=${a}&to=${b}" download>Xuất hóa đơn ra Excel</a>${S.rpPeriod === "today" || S.rpPeriod === "yday" ? `<button class="btn sm" data-act="eodPrint">${icon("print")} In báo cáo cuối ngày</button>` : ""}</div>
-    <div class="row" style="margin-bottom:12px"><div class="chips grow">${periodChips(S.rpPeriod, "rpPeriod")}</div>
+    <div class="row" style="margin-bottom:12px"><div class="chips grow" style="flex-wrap:wrap;overflow:visible">${periodChips(S.rpPeriod, "rpPeriod")}</div>
       <input type="date" id="rpFrom" class="in sm" style="width:auto" value="${a}"><span class="ps">đến</span><input type="date" id="rpTo" class="in sm" style="width:auto" value="${b}"></div>
     <div id="rpBody"><div class="muted">Đang tổng hợp…</div></div></div>`;
   const [rp, invs] = await Promise.all([api("GET", `/api/report?from=${a}&to=${b}`).catch(e => (toast(e.message, true), null)), api("GET", `/api/invoices?from=${a}&to=${b}`).catch(() => [])]);
@@ -183,7 +183,7 @@ VIEWS.report = async function () {
       <div><div class="k">Tiền nhập hàng</div><div class="v">${money(F.buyTotal || 0)}</div></div><div><div class="k">Chi phí khác</div><div class="v">${money((F.chi_cash || 0) + (F.chi_bank || 0) - (F.suppPaid || 0))}</div></div>
       <div><div class="k">Tiền mặt ròng trong kỳ</div><div class="v">${money(F.netCash || 0)}</div></div><div><div class="k">Tài khoản ròng trong kỳ</div><div class="v">${money(F.netBank || 0)}</div></div></div>
     <div class="grid2" style="margin-top:18px;align-items:start">
-      <div class="section"><h2>Xếp hạng khách hàng theo doanh số</h2>${(rp.custs || []).length ? `<div class="tbl"><table><thead><tr><th>#</th><th>Khách hàng</th><th>Hạng</th><th class="r">Số đơn</th><th class="r">Doanh số kỳ này</th><th class="r">Tổng đã mua</th></tr></thead><tbody>${rp.custs.slice(0, 20).map((c, i) => `<tr><td class="ps num">${i + 1}</td><td class="pn">${esc(c.name)}</td><td>${c.tier ? `<span class="pill amber">${esc(c.tier)}</span>` : '<span class="ps">—</span>'}</td><td class="r">${fmt(c.n)}</td><td class="r"><b>${fmt(c.rev)}</b></td><td class="r">${fmt(c.spend)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">Chưa có hóa đơn bán cho khách có tên trong kỳ này.</div>`}</div>
+      ${custRankHtml(rp, owner)}
       <div class="section"><h2>Hàng bán chạy</h2>${rp.top.length ? `<div class="tbl"><table><thead><tr><th>#</th><th>Mặt hàng</th><th class="r">Đã bán</th><th class="r">Doanh thu</th>${owner ? '<th class="r">Lãi</th>' : ""}</tr></thead><tbody>${rp.top.slice(0, 15).map((t, i) => `<tr><td class="ps num">${i + 1}</td><td><div class="pn">${esc(t.name)}</div><div class="hbar"><i style="width:${(t.rev / topMax * 100).toFixed(1)}%"></i></div></td><td class="r">${fq(t.qty)} ${esc(t.unit)}</td><td class="r"><b>${fmt(t.rev)}</b></td>${owner ? `<td class="r">${fmt(t.profit)}</td>` : ""}</tr>`).join("")}</tbody></table></div>` : `<div class="empty">Chưa có hàng bán ra.</div>`}</div>
       <div class="section"><h2>Theo nhóm hàng</h2>${rp.groups.length ? `<div class="tbl"><table><thead><tr><th>Nhóm</th><th class="r">Doanh thu</th>${owner ? '<th class="r">Lãi</th><th class="r">Biên</th>' : ""}</tr></thead><tbody>${rp.groups.map(g => `<tr><td class="pn">${esc(g.name)}</td><td class="r">${fmt(g.rev)}</td>${owner ? `<td class="r">${fmt(g.profit)}</td><td class="r ps">${g.rev ? (g.profit / g.rev * 100).toFixed(0) : 0}%</td>` : ""}</tr>`).join("")}</tbody></table></div>` : ""}
         ${(rp.staff || []).length > 1 ? `<h2 style="margin-top:12px">Theo thu ngân</h2><div class="tbl"><table><tbody>${rp.staff.map(s => `<tr><td>${esc(s.name)}</td><td class="r">${s.n} HĐ</td><td class="r"><b>${fmt(s.rev)}</b></td></tr>`).join("")}</tbody></table></div>` : ""}</div></div>
@@ -202,6 +202,29 @@ function invListHtml(invs) {
   }).join("")}</tbody></table></div>`;
 }
 const findInv = id => (S.rpData?.invs || []).find(v => v.id === id);
+
+/* ---------- xếp hạng khách hàng: lợi nhuận / doanh thu ---------- */
+S.rpCustSort = null; S.rpCustAll = false;
+function custRankHtml(rp, owner) {
+  const all = (rp.custs || []).slice();
+  if (!all.length) return `<div class="section"><h2>Khách hàng mang lại lợi nhuận</h2><div class="empty">Chưa có hóa đơn bán cho khách có tên trong kỳ này.</div></div>`;
+  const by = owner ? (S.rpCustSort || "profit") : "rev";
+  all.sort((a, b) => (b[by] - a[by]) || (b.rev - a.rev));
+  const rows = S.rpCustAll ? all : all.slice(0, 20);
+  const tot = all.reduce((t, c) => ({ rev: t.rev + c.rev, profit: t.profit + c.profit }), { rev: 0, profit: 0 });
+  const head = owner
+    ? `<div class="chips" style="margin:-4px 0 10px"><button class="chip" data-act="rpCustSort" data-v="profit" aria-pressed="${by === "profit"}">Theo lợi nhuận</button><button class="chip" data-act="rpCustSort" data-v="rev" aria-pressed="${by === "rev"}">Theo doanh thu</button></div>`
+    : "";
+  return `<div class="section"><h2>${owner ? "Khách hàng mang lại lợi nhuận" : "Xếp hạng khách hàng theo doanh số"}</h2>${head}
+    <div class="tbl"><table><thead><tr><th>#</th><th>Khách hàng</th><th>Hạng</th><th class="r">Số đơn</th><th class="r">Doanh thu</th>${owner ? '<th class="r">Giá vốn</th><th class="r">Lợi nhuận</th><th class="r">Biên</th>' : '<th class="r">Tổng đã mua</th>'}</tr></thead><tbody>${rows.map((c, i) => {
+      const m = c.rev ? c.profit / c.rev * 100 : 0;
+      return `<tr><td class="ps num">${i + 1}</td><td class="pn">${esc(c.name)}</td><td>${c.tier ? `<span class="pill amber">${esc(c.tier)}</span>` : '<span class="ps">—</span>'}</td><td class="r">${fmt(c.n)}</td><td class="r">${owner ? fmt(c.rev) : `<b>${fmt(c.rev)}</b>`}</td>${owner ? `<td class="r ps">${fmt(c.cost)}</td><td class="r"><b style="${c.profit < 0 ? "color:var(--red)" : ""}">${fmt(c.profit)}</b></td><td class="r ps" style="${m < 8 ? "color:var(--red)" : ""}">${m.toFixed(1)}%</td>` : `<td class="r">${fmt(c.spend)}</td>`}</tr>`;
+    }).join("")}</tbody>${owner ? `<tfoot><tr><td></td><td class="pn">Cộng ${all.length} khách</td><td></td><td></td><td class="r">${fmt(tot.rev)}</td><td></td><td class="r"><b>${fmt(tot.profit)}</b></td><td class="r ps">${tot.rev ? (tot.profit / tot.rev * 100).toFixed(1) : 0}%</td></tr></tfoot>` : ""}</table></div>
+    ${all.length > 20 ? `<div class="row" style="margin-top:8px"><button class="btn sm" data-act="rpCustAll">${S.rpCustAll ? "Chỉ hiện 20 khách đầu" : "Hiện tất cả " + all.length + " khách"}</button></div>` : ""}
+    ${owner ? `<p class="ps" style="margin:8px 0 0">Lợi nhuận = tiền khách trả (sau giảm giá) trừ giá vốn hàng đã bán. Biên đỏ là dưới 8%: bán nhiều nhưng lãi mỏng.</p>` : ""}</div>`;
+}
+ACT.rpCustSort = b => { S.rpCustSort = b.dataset.v; VIEWS.report(); };
+ACT.rpCustAll = () => { S.rpCustAll = !S.rpCustAll; VIEWS.report(); };
 ACT.rpPeriod = b => { S.rpPeriod = b.dataset.v; S.rpOpen = null; VIEWS.report(); };
 ON_CHANGE.rpFrom = ON_CHANGE.rpTo = () => { const a = $("#rpFrom").value, b = $("#rpTo").value; if (a && b) { S.rpPeriod = "custom"; S.rpCustom = [a, b]; VIEWS.report(); } };
 ACT.rpOpen = b => { S.rpOpen = S.rpOpen === b.dataset.id ? null : b.dataset.id; $("#rpInv").innerHTML = invListHtml(S.rpData.invs); };

@@ -513,7 +513,7 @@ window.addEventListener("hashchange", () => { const h = location.hash.slice(1); 
 
 /* ---------- khung trang dùng chung ---------- */
 function periodChips(cur, act) {
-  const P = [["today", "Hôm nay"], ["yday", "Hôm qua"], ["7d", "7 ngày"], ["month", "Tháng này"], ["lmonth", "Tháng trước"], ["30d", "30 ngày"], ["90d", "90 ngày"]];
+  const P = [["today", "Hôm nay"], ["yday", "Hôm qua"], ["7d", "7 ngày"], ["month", "Tháng này"], ["lmonth", "Tháng trước"], ["30d", "30 ngày"], ["90d", "90 ngày"], ["12m", "12 tháng"]];
   return P.map(([k, t]) => `<button class="chip" data-act="${act}" data-v="${k}" aria-pressed="${cur === k}">${t}</button>`).join("");
 }
 function periodRange(k, custom) {
@@ -523,6 +523,7 @@ function periodRange(k, custom) {
   if (k === "7d") return [addDays(t, -6), t];
   if (k === "30d") return [addDays(t, -29), t];
   if (k === "90d") return [addDays(t, -89), t];
+  if (k === "12m") return [addDays(t, -364), t];
   if (k === "month") return [t.slice(0, 8) + "01", t];
   if (k === "lmonth") { const d = new Date(t.slice(0, 8) + "01T00:00:00"); d.setDate(0); const e = dkey(d); return [e.slice(0, 8) + "01", e]; }
   if (k === "custom" && custom) return custom;

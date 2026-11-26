@@ -36,13 +36,13 @@ func inRange(ms int64, from, to string) bool {
 }
 
 func (db *DB) Report(from, to string, owner bool) *Report {
-	r := &Report{From: from, To: to, Hourly: from == to, Flow: map[string]float64{}}
+	r := &Report{From: from, To: to, Hourly: from == to, Flow: map[string]float64{}, Groups: []map[string]any{}, Staff: []map[string]any{}, Custs: []map[string]any{}}
 	db.Read(func(s *State) {
 		type agg struct{ name, unit string; qty, rev, prof float64; n int }
 		top := map[string]*agg{}
 		grp := map[string]*[2]float64{}
 		staff := map[string]*[2]float64{}
-		cust := map[string]*[2]float64{}
+		cust := map[string]*[3]float64{}
 		series := map[string]*[3]float64{}
 		for _, inv := range s.Invoices {
 			if !inRange(inv.Time, from, to) { continue }
@@ -60,9 +60,10 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 			series[k][1] += inv.Total - inv.Cost
 			series[k][2]++
 			if inv.CustID != "" {
-				if cust[inv.CustID] == nil { cust[inv.CustID] = &[2]float64{} }
+				if cust[inv.CustID] == nil { cust[inv.CustID] = &[3]float64{} }
 				cust[inv.CustID][0] += inv.Total
 				cust[inv.CustID][1]++
+				cust[inv.CustID][2] += inv.Total - inv.Cost
 			}
 			st := inv.Staff
 			if staff[st] == nil { staff[st] = &[2]float64{} }
@@ -123,10 +124,15 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 			for id, v := range cust {
 				name, tier := inv0Name(s, id), ""
 				if n := tierIndex(tiers, spend[id]); n > 0 { tier = tiers[n-1].Name }
-				r.Custs = append(r.Custs, map[string]any{"id": id, "name": name, "rev": r0(v[0]), "n": v[1], "tier": tier, "spend": r0(spend[id])})
+				r.Custs = append(r.Custs, map[string]any{"id": id, "name": name, "rev": r0(v[0]), "n": v[1], "tier": tier, "spend": r0(spend[id]), "profit": r0(v[2]), "cost": r0(v[0] - v[2])})
 			}
-			sort.Slice(r.Custs, func(i, j int) bool { return r.Custs[i]["rev"].(float64) > r.Custs[j]["rev"].(float64) })
-			if len(r.Custs) > 30 { r.Custs = r.Custs[:30] }
+			// Mặc định xếp theo lợi nhuận (lãi gộp) cao → thấp; màn hình có thể đổi sang doanh thu.
+			sort.Slice(r.Custs, func(i, j int) bool {
+				a, b := r.Custs[i], r.Custs[j]
+				if a["profit"].(float64) != b["profit"].(float64) { return a["profit"].(float64) > b["profit"].(float64) }
+				return a["rev"].(float64) > b["rev"].(float64)
+			})
+			if len(r.Custs) > 300 { r.Custs = r.Custs[:300] }
 		}
 		for n, v := range staff { r.Staff = append(r.Staff, map[string]any{"name": n, "rev": r0(v[0]), "n": v[1]}) }
 		// dòng tiền
@@ -152,6 +158,8 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 		for _, x := range r.Top { x["profit"] = 0.0 }
 		for _, x := range r.Groups { x["profit"] = 0.0 }
 		for _, x := range r.Series { x["profit"] = 0.0 }
+		for _, x := range r.Custs { x["profit"], x["cost"] = 0.0, 0.0 }
+		sort.Slice(r.Custs, func(i, j int) bool { return r.Custs[i]["rev"].(float64) > r.Custs[j]["rev"].(float64) })
 	}
 	return r
 }
