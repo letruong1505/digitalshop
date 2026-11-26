@@ -176,7 +176,7 @@ function startPoll() {
       const r = await api("GET", "/api/version");
       if (APP && S.offline) { setOffline(false); await refresh(true); }
       else if (r.v !== S.version) await refresh(true);
-      if (APP) syncOutbox();
+      if (APP) { syncOutbox(); apkCheck(); }
       pollFeed().catch(() => {});
     } catch (e) { if (APP && e.net) setOffline(true); }
   }, 3500);

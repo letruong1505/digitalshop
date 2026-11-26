@@ -11,6 +11,9 @@ CODE=$(echo "$VER" | awk -F. '{printf "%d", $1*10000+$2*100+$3}')
 echo "== Digital Shop Android $VER (versionCode $CODE)"
 
 rm -rf www && mkdir www && cp -r ../web/. www/
+# ghi số phiên bản vào ứng dụng để so với bản mới nhất trên máy chủ
+sed -i "s|<head>|<head><script>window.DS_APK='$VER'</script>|" www/index.html
+grep -q "DS_APK" www/index.html || { echo "Không ghi được số phiên bản vào index.html"; exit 1; }
 npm install --no-audit --no-fund
 [ -d android ] || npx cap add android
 npx cap sync android
