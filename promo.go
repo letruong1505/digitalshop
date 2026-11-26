@@ -52,6 +52,7 @@ func custSpendAll(s *State) map[string]float64 {
 		if inv.Void || inv.CustID == "" { continue }
 		out[inv.CustID] += inv.Total
 	}
+	for _, r := range s.Returns { if !r.Void { out[r.CustID] -= r.Total } }
 	return out
 }
 

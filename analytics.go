@@ -28,6 +28,8 @@ type Report struct {
 	Custs    []map[string]any `json:"custs"`
 	Flow     map[string]float64 `json:"flow"`
 	Imported int              `json:"imported"`
+	Returns  float64          `json:"returns"` // giá trị hàng khách trả trong kỳ (đã trừ khỏi doanh thu)
+	RetN     int              `json:"retN"`
 }
 
 func inRange(ms int64, from, to string) bool {
@@ -93,6 +95,41 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 				grp[g][1] += rev - l.Qty*l.Cost
 			}
 		}
+		// hàng khách trả: trừ doanh thu; trừ giá vốn nếu hàng nhập lại kho
+		for _, rt := range s.Returns {
+			if rt.Void || !inRange(rt.Time, from, to) { continue }
+			cr := 0.0
+			if rt.Restock { cr = rt.Cost }
+			r.RetN++
+			r.Returns += rt.Total
+			r.Rev -= rt.Total
+			r.Cost -= cr
+			k := dayOf(rt.Time)
+			if r.Hourly { k = time.UnixMilli(rt.Time).Format("15") }
+			if series[k] == nil { series[k] = &[3]float64{} }
+			series[k][0] -= rt.Total
+			series[k][1] -= rt.Total - cr
+			if rt.CustID != "" {
+				if cust[rt.CustID] == nil { cust[rt.CustID] = &[3]float64{} }
+				cust[rt.CustID][0] -= rt.Total
+				cust[rt.CustID][2] -= rt.Total - cr
+			}
+			for _, l := range rt.Lines {
+				a := top[l.PID]
+				if a == nil { a = &agg{name: l.Name, unit: l.Unit}; top[l.PID] = a }
+				lc := 0.0
+				if rt.Restock { lc = l.Qty * l.Cost }
+				a.qty -= l.Qty * ratioOf(l)
+				a.rev -= l.Qty * l.Price
+				a.prof -= l.Qty*l.Price - lc
+				g := "Chưa phân nhóm"
+				if p := s.Products[l.PID]; p != nil && p.Group != "" { g = p.Group }
+				if p := s.Products[l.PID]; p != nil && p.IsCombo { g = "Combo" }
+				if grp[g] == nil { grp[g] = &[2]float64{} }
+				grp[g][0] -= l.Qty * l.Price
+				grp[g][1] -= l.Qty*l.Price - lc
+			}
+		}
 		r.Profit = r.Rev - r.Cost
 		if r.Hourly {
 			for h := 6; h <= 22; h++ {
@@ -152,7 +189,7 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 		r.Flow["netCash"] = r.Flow["salesCash"] + r.Flow["thu_cash"] - r.Flow["chi_cash"] - r.Flow["buyCash"]
 		r.Flow["netBank"] = r.Flow["salesBank"] + r.Flow["thu_bank"] - r.Flow["chi_bank"] - r.Flow["buyBank"]
 	})
-	r.Rev, r.Cost, r.Profit = r0(r.Rev), r0(r.Cost), r0(r.Profit)
+	r.Rev, r.Cost, r.Profit, r.Returns = r0(r.Rev), r0(r.Cost), r0(r.Profit), r0(r.Returns)
 	if !owner {
 		r.Cost, r.Profit = 0, 0
 		for _, x := range r.Top { x["profit"] = 0.0 }

@@ -343,6 +343,14 @@ func (s *Server) routes() {
 						items = append(items, map[string]any{"type": "receipt", "id": rc.ID, "code": rc.Code, "time": rc.Time, "total": rc.Total, "debt": rc.DebtAmt, "void": rc.Void, "lines": rc.Lines})
 					}
 				}
+				if kind == "cust" {
+					for _, rt := range st.Returns {
+						if rt.CustID != id { continue }
+						eff := -rt.ApplyDebt
+						if rt.RefundMethod == "credit" { eff -= rt.Refund }
+						items = append(items, map[string]any{"type": "return", "id": rt.ID, "code": rt.Code, "time": rt.Time, "total": rt.Total, "debtEffect": eff, "void": rt.Void, "lines": rt.Lines, "applyDebt": rt.ApplyDebt, "refund": rt.Refund, "refundMethod": rt.RefundMethod, "restock": rt.Restock, "note": rt.Note, "staff": rt.Staff, "debtAfter": rt.DebtAfter})
+					}
+				}
 				for _, e := range st.Cash {
 					if e.PartyID != id || e.PartyType != kind { continue }
 					items = append(items, map[string]any{"type": "cash", "id": e.ID, "code": e.Code, "time": e.Time, "kind": e.Kind, "amount": e.Amount, "method": e.Method, "cat": e.Cat, "note": e.Note, "void": e.Void, "debtEffect": debtEffect(*e)})
@@ -353,6 +361,26 @@ func (s *Server) routes() {
 			writeJSON(w, items)
 		}))
 	}
+
+	// ---- khách trả hàng ----
+	m.HandleFunc("GET /api/customers/{id}/returnable", s.auth("sell|money", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var out []*ReturnLineInfo
+		s.db.Read(func(st *State) { out = returnableList(st, r.PathValue("id")) })
+		if out == nil { out = []*ReturnLineInfo{} }
+		writeJSON(w, out)
+	}))
+	m.HandleFunc("POST /api/customers/{id}/return", s.auth("sell|money", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var req ReturnReq
+		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
+		req.CustID = r.PathValue("id")
+		out, err := s.db.CreateReturn(req, u)
+		if err != nil { failErr(w, err); return }
+		writeJSON(w, out)
+	}))
+	m.HandleFunc("POST /api/returns/{id}/void", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
+		if err := s.db.VoidReturn(r.PathValue("id")); err != nil { failErr(w, err); return }
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
 
 	// ---- bán hàng ----
 	m.HandleFunc("POST /api/invoices", s.auth("sell", func(w http.ResponseWriter, r *http.Request, u *User) {

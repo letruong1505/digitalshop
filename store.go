@@ -251,6 +251,7 @@ type State struct {
 	Receipts  map[string]*Receipt   `json:"receipts"`
 	Counts    map[string]*Count     `json:"counts"`
 	Cash      map[string]*CashEntry `json:"cash"`
+	Returns   map[string]*CustReturn `json:"returns"`
 	Orders    map[string]*Order     `json:"orders"`
 	Users     map[string]*User      `json:"users"`
 	InInvs    map[string]*InInvoice `json:"inInvoices"`
@@ -263,7 +264,7 @@ func newState() *State {
 	return &State{
 		Products: map[string]*Product{}, Customers: map[string]*Party{}, Suppliers: map[string]*Party{},
 		Invoices: map[string]*Invoice{}, Receipts: map[string]*Receipt{}, Counts: map[string]*Count{},
-		Cash: map[string]*CashEntry{}, Orders: map[string]*Order{}, Users: map[string]*User{},
+		Cash: map[string]*CashEntry{}, Returns: map[string]*CustReturn{}, Orders: map[string]*Order{}, Users: map[string]*User{},
 		InInvs: map[string]*InInvoice{}, InMap: map[string]*InMap{},
 		Counters: map[string]int{},
 		Settings: Settings{Paper: "80", ExpWarn: 30, ExpDanger: 7, MinMargin: 10, Footer: "Cảm ơn quý khách, hẹn gặp lại!", BlockExpired: true},
@@ -278,6 +279,7 @@ func (s *State) fill() {
 	if s.Receipts == nil { s.Receipts = map[string]*Receipt{} }
 	if s.Counts == nil { s.Counts = map[string]*Count{} }
 	if s.Cash == nil { s.Cash = map[string]*CashEntry{} }
+	if s.Returns == nil { s.Returns = map[string]*CustReturn{} }
 	if s.Orders == nil { s.Orders = map[string]*Order{} }
 	if s.Users == nil { s.Users = map[string]*User{} }
 	if s.InInvs == nil { s.InInvs = map[string]*InInvoice{} }
@@ -372,6 +374,8 @@ func (db *DB) apply(r rec) {
 		applyMap(s.Counts, r)
 	case "cash":
 		applyMap(s.Cash, r)
+	case "return":
+		applyMap(s.Returns, r)
 	case "order":
 		applyMap(s.Orders, r)
 	case "user":
