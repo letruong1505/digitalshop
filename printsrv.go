@@ -31,6 +31,15 @@ const printCSS = `html,body{margin:0;background:#fff}
 #print .rc{width:72mm;padding:3mm 2mm}
 #print .rc.p58{width:48mm;font-size:11px}
 #print .rc.a5{width:140mm;padding:8mm;font-size:13px}
+#print .pdoc{width:190mm;padding:8mm;font-size:12px}
+#print .pdoc h2{font-size:18px}
+#print .pdoc table.pt{border:1px solid #000}
+#print .pdoc table.pt th,#print .pdoc table.pt td{border:1px solid #000;padding:3px 5px;vertical-align:top}
+#print .pdoc table.pt td:nth-child(n+3){min-width:0}
+#print .pdoc tr.tot td{background:#eee}
+#print .pdoc table.sig{margin-top:18px}
+#print .pdoc table.sig td{height:30mm;width:33%}
+#print .pdoc .ps{font-size:.85em}
 #print .c{text-align:center}
 #print .shop{font-size:15px;font-weight:800;text-transform:uppercase}
 #print hr{border:0;border-top:1px dashed #000;margin:5px 0}

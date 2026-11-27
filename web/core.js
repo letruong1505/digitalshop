@@ -439,8 +439,8 @@ function qrSvg(text, cls = "") {
 }
 
 /* ---------- in hóa đơn ---------- */
-function printHtml(html) {
-  const P = $("#print"), paper = (S.settings && S.settings.paper) || "80";
+function printHtml(html, force) {
+  const P = $("#print"), paper = force || (S.settings && S.settings.paper) || "80";
   const thermal = paper === "58" || paper === "80";
   const feed = Math.min(30, Math.max(1, +(S.settings && S.settings.printFeed) || 8));
   const full = html + (thermal ? `<div style="height:${feed * 1.35}em"></div>` : "");

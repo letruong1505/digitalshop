@@ -385,6 +385,7 @@ type CountReq struct {
 	Lines []struct {
 		PID    string  `json:"pid"`
 		Actual float64 `json:"actual"`
+		Note   string  `json:"note"`
 	} `json:"lines"`
 	Note string `json:"note"`
 }
@@ -393,11 +394,16 @@ func (db *DB) CreateCount(req CountReq, u *User) (*Count, error) {
 	var out *Count
 	err := db.Do(func(s *State, t *Tx) error {
 		c := &Count{ID: newID(), Time: nowMs(), Note: strings.TrimSpace(req.Note), Kind: "count", Staff: u.Name}
+		want := map[string]bool{}
+		for _, l := range req.Lines { want[l.PID] = true }
+		rec := countRecon(s, want)
 		for _, l := range req.Lines {
 			p := s.Products[l.PID]
 			if p == nil || p.IsCombo { continue }
 			if l.Actual < 0 { return uerr("Số lượng thực tế không được âm: %s", p.Name) }
-			c.Lines = append(c.Lines, CountLine{PID: p.ID, Name: p.Name, Unit: p.Unit, Before: p.Stock, After: r3(l.Actual), Cost: p.Cost})
+			cl := CountLine{PID: p.ID, Name: p.Name, Unit: p.Unit, Before: p.Stock, After: r3(l.Actual), Cost: p.Cost, Note: strings.TrimSpace(l.Note)}
+			if r := rec[p.ID]; r != nil { cl.HasPrev, cl.PrevTime, cl.Prev, cl.In, cl.Out, cl.Expect = true, r.prevTime, r.prev, r.in, r.out, r.expect }
+			c.Lines = append(c.Lines, cl)
 			p.Stock = r3(l.Actual)
 			reconcileLots(p)
 			p.Updated = nowMs()

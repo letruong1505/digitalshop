@@ -145,6 +145,14 @@ type CountLine struct {
 	Before float64 `json:"before"`
 	After  float64 `json:"after"`
 	Cost   float64 `json:"cost"`
+	Note   string  `json:"note,omitempty"`
+	// Đối chiếu với lần kiểm gần nhất: số sau lần kiểm trước + nhập − bán (± trả hàng) = tồn dự kiến
+	HasPrev  bool    `json:"hasPrev,omitempty"`
+	PrevTime int64   `json:"prevTime,omitempty"`
+	Prev     float64 `json:"prev,omitempty"`
+	In       float64 `json:"in,omitempty"`
+	Out      float64 `json:"out,omitempty"`
+	Expect   float64 `json:"expect,omitempty"`
 }
 
 type Count struct {

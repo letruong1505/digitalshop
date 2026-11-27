@@ -354,58 +354,125 @@ ACT.rcSave = async () => {
 };
 
 /* ================= KIỂM KHO ================= */
-S.ccPeriod = "30d"; S.cc = null;
+S.ccPeriod = "30d"; S.cc = null; S.ccList = [];
 VIEWS.counts = async function () {
   const [a, b] = periodRange(S.ccPeriod);
   $("#main").innerHTML = `<div class="page"><div class="head"><h1>Kiểm kho</h1><button class="btn pri" data-act="ccNew">+ Phiếu kiểm kho</button></div>
     <div class="chips" style="margin-bottom:12px">${periodChips(S.ccPeriod, "ccPeriod")}</div><div id="ccList"><div class="muted">Đang tải…</div></div></div>`;
   const list = await run(() => api("GET", `/api/counts?from=${a}&to=${b}`)); if (!list || S.view !== "counts") return;
+  S.ccList = list;
   $("#ccList").innerHTML = list.length ? `<div class="tbl"><table><thead><tr><th>Mã phiếu</th><th>Thời gian</th><th>Loại</th><th>Chênh lệch</th>${seeCost() ? '<th class="r">Giá trị lệch</th>' : ""}<th>Người làm</th></tr></thead><tbody>${list.map(c => {
     const val = c.lines.reduce((s, l) => s + (l.after - l.before) * (l.cost || 0), 0);
     const diff = c.lines.filter(l => l.after !== l.before);
-    return `<tr><td class="num">${esc(c.code)}</td><td class="num">${dt(c.time)}</td><td>${c.kind === "dispose" ? '<span class="pill red">Xuất hủy</span>' : '<span class="pill mute">Kiểm kho</span>'} <span class="ps">${esc(c.note || "")}</span></td>
+    return `<tr class="click" data-act="ccView" data-id="${esc(c.id)}" style="cursor:pointer"><td class="num">${esc(c.code)}</td><td class="num">${dt(c.time)}</td><td>${c.kind === "dispose" ? '<span class="pill red">Xuất hủy</span>' : '<span class="pill mute">Kiểm kho</span>'} <span class="ps">${esc(c.note || "")}</span></td>
       <td class="ps">${diff.length ? esc(diff.slice(0, 6).map(l => `${l.name} ${l.after - l.before > 0 ? "+" : ""}${fq(l.after - l.before)}`).join(", ")) + (diff.length > 6 ? "…" : "") : "khớp"}</td>${seeCost() ? `<td class="r" style="color:${val < 0 ? "var(--red)" : "inherit"}">${fmt(val)}</td>` : ""}<td class="ps">${esc(c.staff)}</td></tr>`;
-  }).join("")}</tbody></table></div>` : `<div class="empty"><b>Chưa có phiếu kiểm kho</b>Đếm hàng thực tế trên kệ và nhập vào phiếu, phần mềm tự cân lại tồn kho.</div>`;
+  }).join("")}</tbody></table></div><p class="ps" style="margin-top:8px">Bấm vào một phiếu để xem chi tiết, đối chiếu với lần kiểm trước và in lại.</p>` : `<div class="empty"><b>Chưa có phiếu kiểm kho</b>Đếm hàng thực tế trên kệ và nhập vào phiếu, phần mềm tự cân lại tồn kho.</div>`;
 };
 ACT.ccPeriod = b => { S.ccPeriod = b.dataset.v; VIEWS.counts(); };
-ACT.ccNew = () => { S.cc = S.cc || { lines: [], note: "" }; renderCountForm(); };
+
+/* Bảng 5 cột dùng chung cho màn hình và bản in: STT | Hàng hóa | Phần mềm | Kho thực tế | Ghi chú */
+function ccDocHtml(o) {
+  const rows = o.rows.map((r, i) => `<tr><td class="c">${i + 1}</td><td>${esc(r.name)}${r.unit ? ` <span class="ps">(${esc(r.unit)})</span>` : ""}</td><td class="r">${fq(r.soft)}</td><td class="r">${r.actual === null || r.actual === undefined ? "" : fq(r.actual)}</td><td>${esc(r.note || "")}${r.actual !== null && r.actual !== undefined && r.actual !== r.soft ? `<div style="font-size:.85em">Lệch ${r.actual - r.soft > 0 ? "+" : ""}${fq(r3(r.actual - r.soft))}</div>` : ""}</td></tr>`).join("");
+  const tot = o.rows.reduce((t, r) => { t.soft += r.soft; if (r.actual !== null && r.actual !== undefined) { t.act += r.actual; t.dif += r.actual - r.soft; t.n++; } return t; }, { soft: 0, act: 0, dif: 0, n: 0 });
+  const totRow = `<tr class="tot"><td></td><td><b>TỔNG CỘNG</b></td><td class="r"><b>${fq(r3(tot.soft))}</b></td><td class="r"><b>${tot.n ? fq(r3(tot.act)) : ""}</b></td><td>${tot.n ? `<b>Lệch ${tot.dif > 0 ? "+" : ""}${fq(r3(tot.dif))}</b>` : ""}</td></tr>`;
+  return `<div class="pdoc"><div class="c"><div class="shop">${esc(S.settings.shopName || "Digital Shop")}</div><h2 style="margin:4px 0">PHIẾU KIỂM KHO${o.code ? " " + esc(o.code) : ""}</h2></div>
+    <div style="margin:6px 0">Ngày kiểm: ${esc(o.time)} &nbsp;·&nbsp; Người kiểm: <b>${esc(o.staff || "")}</b>${o.note ? " &nbsp;·&nbsp; " + esc(o.note) : ""}</div>
+    <table class="pt"><thead><tr><th style="width:8mm">STT</th><th>Hàng hóa</th><th style="width:24mm">Phần mềm</th><th style="width:26mm">Kho thực tế</th><th style="width:42mm">Ghi chú</th></tr></thead><tbody>${rows}${totRow}</tbody></table>
+    ${o.recon || ""}
+    <table class="sig"><tr><td class="c">Người kiểm kê<br><i>(ký, ghi rõ họ tên)</i></td><td class="c">Thủ kho<br><i>(ký, ghi rõ họ tên)</i></td><td class="c">Chủ cửa hàng<br><i>(ký, ghi rõ họ tên)</i></td></tr></table></div>`;
+}
+function ccReconHtml(lines, forPrint) {
+  const rs = lines.filter(l => l.hasPrev);
+  if (!rs.length) return "";
+  const tb = rs.map(l => {
+    const act = l.after, d = r3(act - l.expect), ds = r3(l.before - l.expect);
+    return `<tr><td>${esc(l.name)}</td><td class="r">${fq(l.prev)}</td><td class="r">+${fq(l.in)}</td><td class="r">−${fq(l.out)}</td><td class="r"><b>${fq(l.expect)}</b></td><td class="r">${fq(l.before)}${ds ? ` <span class="ps">(${ds > 0 ? "+" : ""}${fq(ds)})</span>` : ""}</td><td class="r">${fq(act)}${d ? ` <span class="ps">(${d > 0 ? "+" : ""}${fq(d)})</span>` : ""}</td></tr>`;
+  }).join("");
+  return `<div style="margin-top:12px"><b>Đối chiếu với lần kiểm gần nhất</b><div class="ps">Tồn dự kiến = số sau lần kiểm trước + nhập − bán. Hàng chưa từng kiểm không có đối chiếu.</div>
+    <table class="${forPrint ? "pt" : "pt scr"}" style="margin-top:4px"><thead><tr><th>Hàng hóa</th><th>Sau kiểm trước</th><th>Nhập</th><th>Bán/trả</th><th>Tồn dự kiến</th><th>Tồn máy</th><th>Đếm thực tế</th></tr></thead><tbody>${tb}</tbody></table></div>`;
+}
+ACT.ccView = b => {
+  const c = (S.ccList || []).find(x => x.id === b.dataset.id); if (!c) return;
+  const doc = () => ({ code: c.code, time: dt(c.time), staff: c.staff, note: c.note, rows: c.lines.map(l => ({ name: l.name, unit: l.unit, soft: l.before, actual: l.after, note: l.note })), recon: ccReconHtml(c.lines, true) });
+  S.ccShow = doc;
+  const o = doc(); o.recon = ccReconHtml(c.lines, false);
+  openSheet(`<div class="sheet-h"><h2>${c.kind === "dispose" ? "Phiếu xuất hủy" : "Phiếu kiểm kho"} ${esc(c.code)}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div class="tbl" style="max-height:62vh;overflow:auto">${ccDocHtml(o).replace(/<table class="sig">[\s\S]*<\/table>/, "").replace(/<div class="c"><div class="shop">[\s\S]*?<\/h2><\/div>/, "")}</div>
+    <div class="row" style="margin-top:10px"><span class="grow"></span><button class="btn" data-act="close">Đóng</button><button class="btn pri" data-act="ccPrintView">In lại phiếu</button></div>`, { wide: true });
+};
+ACT.ccPrintView = () => { if (S.ccShow) printHtml(ccDocHtml(S.ccShow()), "a4"); };
+
+ACT.ccNew = () => {
+  if (!S.cc) {
+    const ps = [...S.products.values()].filter(p => !p.isCombo && !p.hidden && p.stock > 0).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+    S.cc = { lines: ps.map(p => ({ pid: p.id, actual: "", note: "" })), note: "", q: "" };
+  }
+  renderCountForm();
+};
 scanHandlers.counts = code => { if (!S.cc || !sheetOpen()) return false; const h = byBarcode(code); if (h) ccAdd(h.p.id, true); else toast("Mã " + code + " chưa có trong kho", true); return true; };
 function ccAdd(pid, inc) {
   const p = S.products.get(pid); if (!p || p.isCombo) return;
-  const ex = S.cc.lines.find(l => l.pid === pid);
+  let ex = S.cc.lines.find(l => l.pid === pid);
   if (ex) { if (inc) ex.actual = r3((parseQty(ex.actual) || 0) + 1); }
-  else S.cc.lines.unshift({ pid, actual: inc ? 1 : "" });
-  renderCountForm(true);
+  else { ex = { pid, actual: inc ? 1 : "", note: "" }; S.cc.lines.unshift(ex); }
+  S.cc.q = ""; renderCountForm(true);
+  const i = S.cc.lines.indexOf(ex), tr = $("#ccr-" + i);
+  if (tr) { tr.scrollIntoView({ block: "center" }); tr.classList.add("hit"); setTimeout(() => tr.classList.remove("hit"), 1200); }
+}
+function ccTotals() {
+  const t = { soft: 0, act: 0, dif: 0, n: 0 };
+  S.cc.lines.forEach(l => { const p = S.products.get(l.pid); if (!p) return; t.soft += p.stock; if (String(l.actual).trim() !== "") { const a = parseQty(l.actual); t.act += a; t.dif += a - p.stock; t.n++; } });
+  return t;
+}
+function ccTotHtml() {
+  const t = ccTotals();
+  return `<td></td><td><b>TỔNG CỘNG</b> <span class="ps">(${S.cc.lines.length} mặt hàng, đã đếm ${t.n})</span></td><td class="r"><b>${fq(r3(t.soft))}</b></td><td class="r"><b>${t.n ? fq(r3(t.act)) : ""}</b></td><td><b>${t.n ? "Lệch " + (t.dif > 0 ? "+" : "") + fq(r3(t.dif)) : ""}</b></td>`;
 }
 function renderCountForm(keep) {
   const C = S.cc;
   const locs = [...new Set([...S.products.values()].map(p => p.location).filter(Boolean))].sort();
-  const linesHtml = () => C.lines.length ? `<div class="tbl" style="max-height:52vh;overflow:auto"><table><thead><tr><th>Mặt hàng</th><th class="r">Tồn trên máy</th><th class="r">Đếm thực tế</th><th class="r">Lệch</th><th></th></tr></thead><tbody>${C.lines.map((l, i) => {
+  const linesHtml = () => C.lines.length ? `<div class="tbl" style="max-height:50vh;overflow:auto"><table><thead><tr><th style="width:44px">STT</th><th>Hàng hóa</th><th class="r">Phần mềm</th><th class="r">Kho thực tế</th><th>Ghi chú</th><th></th></tr></thead><tbody id="ccBody">${C.lines.map((l, i) => {
     const p = S.products.get(l.pid); if (!p) return "";
     const a = String(l.actual).trim() === "" ? null : parseQty(l.actual);
     const d = a === null ? null : r3(a - p.stock);
-    return `<tr><td><div class="pn">${esc(p.name)}</div><div class="ps">${esc(p.location || p.group || "")}</div></td><td class="r">${fq(p.stock)} ${esc(p.unit)}</td>
-      <td class="r"><input class="in sm r num" style="width:90px" data-in="ccl" data-i="${i}" value="${esc(l.actual)}" inputmode="decimal" placeholder="?"></td>
-      <td class="r" id="ccd-${i}" style="color:${d < 0 ? "var(--red)" : d > 0 ? "var(--green-text)" : "inherit"}">${d === null ? "" : (d > 0 ? "+" : "") + fq(d)}</td><td><button class="x" data-act="ccRm" data-i="${i}" aria-label="Bỏ">×</button></td></tr>`;
-  }).join("")}</tbody></table></div>` : `<div class="empty">Thêm mặt hàng cần kiểm, hoặc thêm cả một nhóm / một kệ.</div>`;
+    const hide = C.q && !norm(p.name + " " + (p.code || "") + " " + (p.barcode || "")).includes(norm(C.q));
+    return `<tr id="ccr-${i}"${hide ? " hidden" : ""}><td class="num">${i + 1}</td><td><div class="pn">${esc(p.name)}</div><div class="ps">${esc(p.location || p.group || "")}</div></td><td class="r">${fq(p.stock)} ${esc(p.unit)}</td>
+      <td class="r"><input class="in sm r num" style="width:90px" data-in="ccl" data-i="${i}" value="${esc(l.actual)}" inputmode="decimal" placeholder="?"><div class="ps" id="ccd-${i}" style="color:${d < 0 ? "var(--red)" : d > 0 ? "var(--green-text)" : "inherit"}">${d === null ? "" : "Lệch " + (d > 0 ? "+" : "") + fq(d)}</div></td>
+      <td><input class="in sm" style="min-width:110px" data-in="ccln" data-i="${i}" value="${esc(l.note || "")}" placeholder="Ghi chú"></td><td><button class="x" data-act="ccRm" data-i="${i}" aria-label="Bỏ">×</button></td></tr>`;
+  }).join("")}</tbody><tfoot><tr id="ccTot">${ccTotHtml()}<td></td></tr></tfoot></table></div>` : `<div class="empty">Chưa có hàng nào còn tồn. Thêm mặt hàng cần kiểm, hoặc thêm cả một nhóm / một kệ.</div>`;
   if (keep && sheetOpen() && $("#ccLines")) { $("#ccLines").innerHTML = linesHtml(); return; }
   openSheet(`<div class="sheet-h"><h2>Phiếu kiểm kho</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
-    <div class="grid3" style="align-items:end"><div class="field"><label for="ccQ">Thêm mặt hàng (gõ tên hoặc quét mã)</label><div class="search" style="position:relative">${icon("search")}<input id="ccQ" class="in" autocomplete="off"><div class="dd" id="ccDD" hidden style="left:0;right:0;top:100%"></div></div></div>
+    <div class="ps" style="margin-bottom:8px">Người kiểm: <b>${esc(S.me.name)}</b> · ${dt(Date.now())} · Phiếu liệt kê sẵn mọi mặt hàng còn tồn. Dòng để trống “Kho thực tế” sẽ giữ nguyên tồn.</div>
+    <div class="grid3" style="align-items:end"><div class="field"><label for="ccQ">Thêm mặt hàng khác (gõ tên hoặc quét mã)</label><div class="search" style="position:relative">${icon("search")}<input id="ccQ" class="in" autocomplete="off"><div class="dd" id="ccDD" hidden></div></div></div>
       <div class="field"><label for="ccGroup">Thêm cả nhóm</label><select id="ccGroup" class="in"><option value="">— chọn nhóm —</option>${groups().map(g => `<option>${esc(g)}</option>`).join("")}</select></div>
       <div class="field"><label for="ccLoc">Thêm cả kệ / vị trí</label><select id="ccLoc" class="in"><option value="">— chọn vị trí —</option>${locs.map(g => `<option>${esc(g)}</option>`).join("")}</select></div></div>
+    <div class="field"><input id="ccFilter" class="in" placeholder="Lọc trong phiếu (tên, mã)" value="${esc(C.q || "")}"></div>
     <div id="ccLines">${linesHtml()}</div>
-    <div class="field"><input id="ccNote" class="in" placeholder="Ghi chú" value="${esc(C.note)}"></div>
-    <div class="row"><span class="ps grow">Dòng để trống “Đếm thực tế” sẽ không được lưu. Quét mã vạch nhiều lần = cộng dồn số đếm.</span><button class="btn" data-act="close">Để sau</button><button class="btn pri" data-act="ccSave">Cân bằng kho</button></div>`, { wide: true, focus: "#ccQ" });
+    <div class="field"><input id="ccNote" class="in" placeholder="Ghi chú chung của phiếu" value="${esc(C.note)}"></div>
+    <div class="row"><span class="ps grow">Quét mã vạch nhiều lần = cộng dồn số đếm.</span><button class="btn" data-act="ccPrint">In phiếu</button><button class="btn" data-act="close">Để sau</button><button class="btn pri" data-act="ccSave">Cân bằng kho</button></div>`, { wide: true });
 }
 ON_INPUT.ccQ = el => { const d = $("#ccDD"); d.hidden = !el.value.trim(); d.innerHTML = pickList("product", el.value, "ccPick", 8); };
-ACT.ccPick = b => { ccAdd(b.dataset.id); const q = $("#ccQ"); q.value = ""; $("#ccDD").hidden = true; q.focus(); };
-ON_CHANGE.ccGroup = el => { if (!el.value) return; [...S.products.values()].filter(p => p.group === el.value && !p.isCombo && !p.hidden).forEach(p => { if (!S.cc.lines.some(l => l.pid === p.id)) S.cc.lines.push({ pid: p.id, actual: "" }); }); el.value = ""; renderCountForm(true); };
-ON_CHANGE.ccLoc = el => { if (!el.value) return; [...S.products.values()].filter(p => p.location === el.value && !p.isCombo && !p.hidden).forEach(p => { if (!S.cc.lines.some(l => l.pid === p.id)) S.cc.lines.push({ pid: p.id, actual: "" }); }); el.value = ""; renderCountForm(true); };
-ON_INPUT.ccl = el => { const i = +el.dataset.i, l = S.cc.lines[i]; l.actual = el.value; const p = S.products.get(l.pid); const d = el.value.trim() === "" ? null : r3(parseQty(el.value) - p.stock); const c = $("#ccd-" + i); if (c) { c.textContent = d === null ? "" : (d > 0 ? "+" : "") + fq(d); c.style.color = d < 0 ? "var(--red)" : d > 0 ? "var(--green-text)" : "inherit"; } };
+ACT.ccPick = b => { ccAdd(b.dataset.id); const q = $("#ccQ"); if (q) { q.value = ""; $("#ccDD").hidden = true; q.focus(); } };
+ON_INPUT.ccFilter = el => { S.cc.q = el.value; const nq = norm(el.value); S.cc.lines.forEach((l, i) => { const p = S.products.get(l.pid), tr = $("#ccr-" + i); if (p && tr) tr.hidden = !!nq && !norm(p.name + " " + (p.code || "") + " " + (p.barcode || "")).includes(nq); }); };
+function ccAddMany(pred) { [...S.products.values()].filter(p => pred(p) && !p.isCombo && !p.hidden).forEach(p => { if (!S.cc.lines.some(l => l.pid === p.id)) S.cc.lines.push({ pid: p.id, actual: "", note: "" }); }); renderCountForm(true); }
+ON_CHANGE.ccGroup = el => { if (!el.value) return; const v = el.value; el.value = ""; ccAddMany(p => p.group === v); };
+ON_CHANGE.ccLoc = el => { if (!el.value) return; const v = el.value; el.value = ""; ccAddMany(p => p.location === v); };
+ON_INPUT.ccl = el => {
+  const i = +el.dataset.i, l = S.cc.lines[i]; l.actual = el.value; const p = S.products.get(l.pid);
+  const d = el.value.trim() === "" ? null : r3(parseQty(el.value) - p.stock), c = $("#ccd-" + i);
+  if (c) { c.textContent = d === null ? "" : "Lệch " + (d > 0 ? "+" : "") + fq(d); c.style.color = d < 0 ? "var(--red)" : d > 0 ? "var(--green-text)" : "inherit"; }
+  const t = $("#ccTot"); if (t) t.innerHTML = ccTotHtml() + "<td></td>";
+};
+ON_INPUT.ccln = el => { S.cc.lines[+el.dataset.i].note = el.value; };
 ON_INPUT.ccNote = el => { S.cc.note = el.value; };
 ACT.ccRm = b => { S.cc.lines.splice(+b.dataset.i, 1); renderCountForm(true); };
+ACT.ccPrint = () => {
+  const rows = S.cc.lines.map(l => { const p = S.products.get(l.pid); return p ? { name: p.name, unit: p.unit, soft: p.stock, actual: null, note: "" } : null; }).filter(Boolean);
+  if (!rows.length) return toast("Phiếu chưa có mặt hàng", true);
+  printHtml(ccDocHtml({ code: "", time: dt(Date.now()), staff: S.me.name, note: S.cc.note, rows }), "a4");
+};
 ACT.ccSave = async () => {
-  const lines = S.cc.lines.filter(l => String(l.actual).trim() !== "").map(l => ({ pid: l.pid, actual: parseQty(l.actual) }));
+  const lines = S.cc.lines.filter(l => String(l.actual).trim() !== "").map(l => ({ pid: l.pid, actual: parseQty(l.actual), note: l.note || "" }));
   if (!lines.length) return toast("Chưa nhập số đếm thực tế", true);
   const r = await run(() => api("POST", "/api/counts", { lines, note: S.cc.note }), c => `Đã cân bằng kho ${c.code}`);
   if (r) { S.cc = null; closeSheet(); await refresh(true); }
