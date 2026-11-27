@@ -134,7 +134,14 @@ func (s *Server) login(w http.ResponseWriter, uid string) string {
 	return tok
 }
 
-func lanAddrs(port int) []string {
+// isCGNAT: dải 100.64.0.0/10, nơi Tailscale cấp địa chỉ cho máy trong mạng riêng ảo.
+func isCGNAT(ip net.IP) bool { ip4 := ip.To4(); return ip4 != nil && ip4[0] == 100 && ip4[1]&0xC0 == 64 }
+
+// lanAddrs: địa chỉ trong mạng nội bộ (wifi/LAN). remoteAddrs: địa chỉ Tailscale của máy này (xem từ xa).
+func lanAddrs(port int) []string { return ifaceAddrs(port, false) }
+func remoteAddrs(port int) []string { return ifaceAddrs(port, true) }
+
+func ifaceAddrs(port int, remote bool) []string {
 	out := []string{}
 	ifs, _ := net.Interfaces()
 	for _, i := range ifs {
@@ -145,6 +152,7 @@ func lanAddrs(port int) []string {
 			if !ok || ipn.IP.To4() == nil { continue }
 			ip := ipn.IP.String()
 			if strings.HasPrefix(ip, "169.254.") { continue }
+			if isCGNAT(ipn.IP) != remote { continue }
 			out = append(out, "http://"+ip+":"+itoa(int64(port)))
 		}
 	}
@@ -286,6 +294,7 @@ func (s *Server) routes() {
 		})
 		out["me"] = map[string]any{"id": u.ID, "name": u.Name, "role": normRole(u.Role), "perms": u.perms()}
 		out["lan"] = lanAddrs(s.port)
+		out["remote"] = remoteAddrs(s.port)
 		out["dataDir"] = s.db.dir
 		out["app"], out["appVersion"], out["termsVersion"] = AppName, AppVersion, TermsVersion
 		out["today"] = today()

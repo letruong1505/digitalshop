@@ -95,6 +95,71 @@ Phát triển bởi Nam Linh Group
    - DieuKhoanSuDung.txt và GiayPhepBenThuBa.txt trong thư mục cài đặt,
      hoặc Cài đặt → Giới thiệu & giấy phép.
 
+13. SỬA ĐƠN SAU KHI ĐÃ THANH TOÁN
+   - Bán hàng, sau khi thanh toán bấm "Sửa đơn / đổi thanh toán" (hoặc Báo cáo → chọn hóa đơn → "Sửa đơn").
+     Các dòng hàng được mở lại trong một hóa đơn mới: thêm hàng, đổi số lượng, đổi tiền mặt / chuyển khoản / ghi nợ.
+   - Bấm Thanh toán: hóa đơn cũ được thay bằng hóa đơn mới trong một lần lưu (kho, công nợ, điểm tự tính lại),
+     in lại 1 phiếu. Hóa đơn cũ vẫn nằm trong danh sách với trạng thái "hủy" và ghi "Đã sửa thành ...".
+   - Thu ngân tự sửa được hóa đơn của chính mình trong 30 phút. Hóa đơn cũ hơn cần quyền "Xóa, hủy hóa đơn" (quản lý).
+   - Nếu hóa đơn mới không hợp lệ (vd quá tồn kho) thì hóa đơn cũ giữ nguyên, không mất gì.
+
+14. KIỂM KHO: PHIẾU 5 CỘT
+   - Kiểm kho → "+ Phiếu kiểm kho": tự liệt kê mọi mặt hàng còn tồn. Mỗi dòng có STT, Hàng hóa, Phần mềm (tồn trên máy),
+     Kho thực tế (nhập số đếm), Ghi chú. Chênh lệch hiện ngay dưới ô đếm; dòng cuối là TỔNG CỘNG.
+   - Dòng để trống "Kho thực tế" thì giữ nguyên tồn. Quét mã vạch: nhảy tới dòng hàng và cộng dồn số đếm.
+     Ô "Lọc trong phiếu" giúp tìm nhanh. Có thể thêm hàng khác, cả nhóm hoặc cả kệ.
+   - "In phiếu": in khổ A4 (cột Kho thực tế để trống cho nhân viên đếm tay) kèm chỗ ký của người kiểm kê, thủ kho, chủ cửa hàng.
+     Tên người kiểm là nhân viên đang đăng nhập.
+   - Bấm một phiếu cũ để xem đủ 5 cột, bản in lại, và phần "Đối chiếu với lần kiểm gần nhất":
+     số sau lần kiểm trước + nhập − bán (và trả NCC) = tồn dự kiến, so với tồn trên máy và số đếm thực tế.
+     Hàng chưa từng kiểm thì không có đối chiếu.
+
+15. ẢNH MẶT HÀNG
+   - Hàng hóa → sửa mặt hàng → "Chọn hoặc chụp ảnh" (điện thoại chụp trực tiếp được). Ảnh tự thu nhỏ cho nhẹ.
+     "Xóa ảnh" để bỏ. Ảnh hiện ở màn hình bán hàng và danh sách hàng, không in lên hóa đơn, có trong file sao lưu.
+   - "Nhập ảnh hàng loạt" (trang Hàng hóa): chọn nhiều ảnh một lần. Phần mềm ghép theo TÊN FILE:
+     trùng mã vạch, mã hàng (vd SP000002.jpg) hoặc đúng tên hàng (vd Mì Hảo Hảo.jpg). Ảnh không khớp được liệt kê để đổi tên.
+
+16. CHIẾN DỊCH GIÁ
+   - Combo & khuyến mãi → "Chiến dịch giá" → "+ Tạo chiến dịch": đặt tên, từ ngày đến hết ngày, thêm nhiều dòng
+     (mỗi dòng: một nhóm hàng hoặc một mặt hàng, giảm % hoặc giảm đồng trên mỗi đơn vị). Bật/tắt bất cứ lúc nào.
+   - Bán hàng tự áp dụng: hiện giá gốc gạch ngang và tên chiến dịch; hết hạn tự về giá thường.
+     Mặt hàng nằm trong nhiều dòng hoặc nhiều chiến dịch thì lấy mức giảm cao nhất (không cộng dồn).
+   - Thu ngân sửa tay giá của dòng nào thì dòng đó không tính khuyến mãi.
+   - Hóa đơn in dòng "KM tên chiến dịch: giá gốc ...". Báo cáo → "Theo chiến dịch giá" cho biết mỗi chương trình giảm bao nhiêu.
+   - Cần quyền "Khuyến mãi, chiến dịch giá" (chủ và quản lý có sẵn; gán thêm cho nhân viên ở Nhân viên & mã PIN).
+
+17. TÍCH ĐIỂM KHÁCH HÀNG
+   - Combo & khuyến mãi → "Tích điểm khách hàng": bật, đặt mua bao nhiêu đồng được 1 điểm, 1 điểm đổi bao nhiêu đồng,
+     mức dùng tối thiểu và tối đa % hóa đơn. Chọn khách trên hóa đơn thì tự tích; khách có điểm thì dùng để giảm giá.
+   - Hủy hóa đơn hoặc khách trả hàng sẽ thu hồi điểm tương ứng. Có thể cộng/trừ điểm tay (tặng sinh nhật, sửa sai).
+
+18. TRẢ HÀNG NHÀ CUNG CẤP
+   - Trong trang Nhà cung cấp chọn nhà cung cấp → trả hàng đã nhập: kho giảm, công nợ nhà cung cấp (hoặc tiền hoàn) tự điều chỉnh.
+     Hủy phiếu trả sẽ trả kho và công nợ về như cũ.
+
+19. KẾT QUẢ KINH DOANH VÀ CHỐT CA
+   - Báo cáo → "Kết quả kinh doanh": doanh thu thuần, giá vốn, lãi gộp, chi phí, hao hụt kho, lợi nhuận ròng theo kỳ.
+   - Báo cáo → "Chốt ca cuối ngày": đếm tiền mặt trong két, so với số tiền phần mềm tính được, ghi chênh lệch và số tiền để lại két;
+     in phiếu chốt ca.
+
+20. ỨNG DỤNG ANDROID
+   - In hóa đơn từ điện thoại: ứng dụng gửi lệnh về máy tính chạy Digital Shop để máy tính in (cần máy tính đang bật,
+     máy in đã cài, có Microsoft Edge hoặc Chrome). Tắt ở Cài đặt → In hóa đơn nếu không muốn máy tính tự in.
+   - Cập nhật ứng dụng: Cài đặt → "Cập nhật ứng dụng Android" → kiểm tra, tải file APK và cài đè lên (dữ liệu giữ nguyên).
+     Ứng dụng điện thoại và phần mềm máy tính cập nhật riêng với nhau.
+   - Mất kết nối máy tính: vẫn bán được, hóa đơn lưu trên điện thoại và tự gửi lên khi có mạng lại. Thanh trạng thái chỉ
+     hiện gọn, tự thu nhỏ sau vài giây.
+
+21. XEM TỪ XA (KHÔNG CẦN MỞ CỔNG MODEM)
+   - Cách 1, Tailscale (khuyên dùng): cài Tailscale (miễn phí) trên máy tính cửa hàng và điện thoại, đăng nhập cùng tài khoản.
+     Cài đặt → "Xem từ xa (Tailscale)" hiện địa chỉ dạng 100.x.x.x và mã QR; điện thoại bật Tailscale rồi mở địa chỉ đó.
+   - Mặc định chỉ chủ cửa hàng đăng nhập từ xa được. Cho nhân viên xem từ xa: Nhân viên & mã PIN → sửa nhân viên
+     → "Cho xem từ xa", và nên đặt mã PIN dài.
+   - Cách 2, Cloudflare Tunnel: chạy lệnh  cloudflared tunnel --url http://localhost:8686  để có địa chỉ https tạm thời.
+     Chỉ dùng khi hiểu rủi ro: ai biết địa chỉ cũng thấy được màn hình đăng nhập, nên đặt mã PIN dài và đừng chia sẻ địa chỉ.
+   - Máy tính chính phải bật Digital Shop thì mới xem từ xa được.
+
 BẢN QUYỀN VÀ CẬP NHẬT (từ bản 3.1)
    - Dùng thử đầy đủ 30 ngày. Cài đặt → Bản quyền: bấm "Mua bản quyền", chọn gói, chuyển khoản theo QR;
      phần mềm tự nhận mã và kích hoạt sau khoảng 1 phút (hoặc bấm "Nhận mã đã mua", hoặc dán mã DS1...).

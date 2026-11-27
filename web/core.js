@@ -134,7 +134,7 @@ async function refresh(silent) {
   else render();
 }
 function applyBoot(b) {
-  S.me = b.me; S.settings = b.settings || {}; S.hasKey = b.hasKey; S.hasPayKeys = b.hasPayKeys || {}; S.users = b.users || []; S.lan = b.lan || []; S.dataDir = b.dataDir; S.appVersion = b.appVersion || ""; S.inNew = b.inNew || 0; S.today = b.today || dkey();
+  S.me = b.me; S.settings = b.settings || {}; S.hasKey = b.hasKey; S.hasPayKeys = b.hasPayKeys || {}; S.users = b.users || []; S.lan = b.lan || []; S.remote = b.remote || []; S.dataDir = b.dataDir; S.appVersion = b.appVersion || ""; S.inNew = b.inNew || 0; S.today = b.today || dkey();
   S.products = new Map((b.products || []).map(p => [p.id, p]));
   S.customers = new Map((b.customers || []).map(c => [c.id, c]));
   S.suppliers = new Map((b.suppliers || []).map(c => [c.id, c]));
