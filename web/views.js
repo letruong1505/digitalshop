@@ -148,7 +148,7 @@ VIEWS.products = function () {
     <div class="head"><h1>Hàng hóa</h1>${impBtn("products")}
       <a class="btn sm" href="/api/export/products" download>Xuất Excel</a>
       ${exp && can("stock") ? `<button class="btn sm danger" data-act="dispose" data-confirm="Bấm lần nữa: hủy toàn bộ lô hết hạn">Xuất hủy hàng hết hạn (${exp})</button>` : ""}
-      ${can("stock") ? `<button class="btn sm" data-act="newCombo">+ Combo</button><button class="btn sm pri" data-act="newProduct">+ Mặt hàng</button>` : ""}</div>
+      ${can("stock") ? `<button class="btn sm" data-act="imgBulk">Nhập ảnh hàng loạt</button>` : ""}${can("stock") ? `<button class="btn sm" data-act="newCombo">+ Combo</button><button class="btn sm pri" data-act="newProduct">+ Mặt hàng</button>` : ""}</div>
     <div class="stats">${stat("all", "Mặt hàng đang bán", fmt(all.length - combos - hidden))}
       ${owner ? `<div class="stat"><div class="k">Giá trị tồn (giá vốn)</div><div class="v">${money(val)}</div></div>` : ""}
       ${stat("low", "Sắp hết", low, "warn")}${stat("out", "Hết hàng", out, "bad")}${stat("near", `Cận date (≤${S.settings.expWarn || 30} ngày)`, near, "warn")}${stat("exp", "Có lô hết hạn", exp, "bad")}${stat("combo", "Combo", combos)}${hidden ? stat("hidden", "Ngừng bán", hidden) : ""}</div>
@@ -157,7 +157,7 @@ VIEWS.products = function () {
     ${!all.length ? `<div class="empty"><b>Kho đang trống</b>Lấy danh mục hàng từ file Excel xuất ra từ KiotViet / MISA, hoặc thêm từng mặt hàng.<div class="row" style="justify-content:center;margin-top:12px">${impBtn("products", "pri")}</div></div>` : !items.length ? `<div class="empty">Không có mặt hàng nào khớp bộ lọc.</div>` :
     `<div class="tbl"><table><thead><tr><th>Mặt hàng</th><th>Nhóm</th><th class="r">Tồn kho</th>${owner ? '<th class="r">Giá vốn</th>' : ""}<th class="r">Giá bán</th><th>Hạn dùng gần nhất</th><th>Tình trạng</th></tr></thead><tbody>${show.map(p => {
       const st = prodStatus(p), e = expInfo(p);
-      return `<tr class="click" data-act="${can("stock") ? "editProduct" : "viewProduct"}" data-id="${esc(p.id)}"><td><div class="pn">${p.isCombo ? '<span class="pill blue">combo</span> ' : ""}${esc(p.name)}</div><div class="ps">${esc(p.code)}${p.barcode ? " · " + esc(p.barcode) : ""}${p.location ? " · " + esc(p.location) : ""}${(p.units || []).length ? " · " + p.units.map(u => `1 ${esc(u.name)} = ${fq(u.ratio)} ${esc(p.unit)}`).join(", ") : ""}</div></td>
+      return `<tr class="click" data-act="${can("stock") ? "editProduct" : "viewProduct"}" data-id="${esc(p.id)}"><td><div class="pn">${p.img ? `<img class="pthumb" loading="lazy" alt="" src="${esc(imgUrl(p))}">` : ""}${p.isCombo ? '<span class="pill blue">combo</span> ' : ""}${esc(p.name)}</div><div class="ps">${esc(p.code)}${p.barcode ? " · " + esc(p.barcode) : ""}${p.location ? " · " + esc(p.location) : ""}${(p.units || []).length ? " · " + p.units.map(u => `1 ${esc(u.name)} = ${fq(u.ratio)} ${esc(p.unit)}`).join(", ") : ""}</div></td>
         <td class="ps">${esc(p.group || "")}</td><td class="r"><b>${esc(stockText(p))}</b></td>${owner ? `<td class="r">${fmt(p.cost)}</td>` : ""}<td class="r">${fmt(p.price)}</td>
         <td class="num">${e.near ? `${vnDate(e.near)} <span class="ps">(${e.left} ngày${e.nearQty ? ", " + fq(e.nearQty) + " " + esc(p.unit) : ""})</span>` : '<span class="ps">—</span>'}${e.expired ? `<div class="pill red">${fq(e.expired)} ${esc(p.unit)} đã hết hạn</div>` : ""}</td>
         <td><span class="pill ${st.k}">${st.t}</span></td></tr>`;
@@ -179,6 +179,15 @@ ACT.viewProduct = b => {
 
 /* ---- form mặt hàng ---- */
 S.pf = null;
+const pfHasImg = f => f._img ? true : f._imgDel ? false : !!f.img;
+const pfImgHtml = f => { const u = f._img || (f._imgDel ? "" : imgUrl(f)); return u ? `<img class="pimg" alt="" src="${esc(u)}">` : `<span class="pimg none">Chưa có ảnh</span>`; };
+ACT.pfImgPick = () => { const i = $("#pfImgFile"); if (i) i.click(); };
+ON_CHANGE.pfImgFile = async el => {
+  const f = el.files && el.files[0]; if (!f) return;
+  try { S.pf._img = await fileToImg(f); S.pf._imgDel = false; } catch (e) { toast(e.message, true); }
+  el.value = ""; $("#pfImgBox").innerHTML = pfImgHtml(S.pf); $("#pfImgDel").hidden = !pfHasImg(S.pf);
+};
+ACT.pfImgDel = () => { S.pf._img = ""; S.pf._imgDel = true; $("#pfImgBox").innerHTML = pfImgHtml(S.pf); $("#pfImgDel").hidden = true; };
 function openProductForm(p) {
   S.pf = JSON.parse(JSON.stringify(p));
   S.pf.units = S.pf.units || []; S.pf.items = S.pf.items || []; S.pf.lots = S.pf.lots || [];
@@ -209,6 +218,9 @@ function renderProductForm() {
       <div class="field"><label for="pf-min">Báo sắp hết khi còn ≤</label><input id="pf-min" class="in num" data-in="pf" data-f="min" inputmode="decimal" value="${fq(f.min || 0)}"></div>
       <div class="field"><label for="pf-loc">Vị trí trong tiệm</label><input id="pf-loc" class="in" data-in="pf" data-f="location" value="${esc(f.location || "")}" placeholder="vd Kệ 2 tầng trên, Tủ mát"></div>`}
       <div class="field full"><label for="pf-alias">Tên gọi khác (cho tách đơn Zalo)</label><input id="pf-alias" class="in" data-in="pf" data-f="alias" value="${esc(f.alias || "")}" placeholder="vd bia sg, sài gòn xanh, ken"><span class="hint">Các cách khách hay gọi, cách nhau bằng dấu phẩy.</span></div>
+      <div class="field full"><label>Ảnh mặt hàng</label><div class="row" style="align-items:center"><span id="pfImgBox">${pfImgHtml(f)}</span>
+        <button type="button" class="btn sm" data-act="pfImgPick">Chọn hoặc chụp ảnh</button><button type="button" class="btn sm" data-act="pfImgDel" id="pfImgDel"${pfHasImg(f) ? "" : " hidden"}>Xóa ảnh</button>
+        <input type="file" id="pfImgFile" accept="image/*" hidden></div><div class="ps">Ảnh tự thu nhỏ cho nhẹ. Hiện ở màn hình bán hàng và danh sách hàng, không in lên hóa đơn.</div></div>
     </div>
     ${f.isCombo ? `<fieldset class="card stack" style="margin:0"><legend class="lbl" style="padding:0 6px">Mặt hàng trong combo</legend>
       ${f.items.map((it, i) => { const p = S.products.get(it.pid); return `<div class="row"><span class="grow pn">${esc(p ? p.name : "(đã xóa)")}</span><input class="in sm r num" style="width:80px" data-in="pfi" data-i="${i}" value="${fq(it.qty)}" inputmode="decimal" aria-label="Số lượng"><span class="ps" style="width:44px">${esc(p ? p.unit : "")}</span><button type="button" class="x" data-act="pfItemRm" data-i="${i}" aria-label="Bỏ">×</button></div>`; }).join("") || '<div class="ps">Chưa có mặt hàng nào.</div>'}
@@ -256,7 +268,11 @@ async function saveProductForm() {
   }
   if (!body.price && !confirmZero()) return;
   const r = await run(() => api("POST", "/api/products", body), f.id ? "Đã lưu " + body.name : "Đã thêm " + body.name);
-  if (r) { closeSheet(); S.pf = null; await refresh(true); }
+  if (r) {
+    if (f._img) await run(() => api("POST", "/api/products/images", { items: [{ pid: r.id, data: f._img }] }));
+    else if (f._imgDel && f.img) await run(() => api("POST", `/api/products/${r.id}/image/delete`));
+    closeSheet(); S.pf = null; await refresh(true);
+  }
 }
 function confirmZero() { toast("Nhập giá bán trước khi lưu", true); return false; }
 ACT.pfDelete = async () => { const r = await run(() => api("DELETE", "/api/products/" + S.pf.id), "Đã xóa"); if (r) { closeSheet(); refresh(true); } };
@@ -476,4 +492,36 @@ ACT.ccSave = async () => {
   if (!lines.length) return toast("Chưa nhập số đếm thực tế", true);
   const r = await run(() => api("POST", "/api/counts", { lines, note: S.cc.note }), c => `Đã cân bằng kho ${c.code}`);
   if (r) { S.cc = null; closeSheet(); await refresh(true); }
+};
+
+/* ---- nhập ảnh hàng loạt: ghép theo TÊN FILE = mã vạch, mã hàng hoặc đúng tên hàng ---- */
+ACT.imgBulk = () => {
+  openSheet(`<div class="sheet-h"><h2>Nhập ảnh hàng loạt</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <p class="ps" style="margin:0 0 8px">Chọn nhiều ảnh cùng lúc. Phần mềm ghép ảnh với mặt hàng theo <b>tên file</b> (bỏ đuôi .jpg/.png): trùng <b>mã vạch</b>, <b>mã hàng</b> (vd SP000002.jpg) hoặc <b>đúng tên hàng</b> (vd Mì Hảo Hảo.jpg). Ảnh không khớp sẽ được liệt kê để bạn đổi tên.</p>
+    <div class="row"><input type="file" id="imgBulkFile" accept="image/*" multiple><span class="grow"></span></div>
+    <div id="imgBulkOut" class="ps" style="margin-top:10px"></div>`);
+};
+function imgBulkIndex() {
+  const m = new Map(), add = (k, p) => { k = norm(k); if (k && !m.has(k)) m.set(k, p); };
+  for (const p of S.products.values()) { add(p.barcode, p); add(p.code, p); }
+  for (const p of S.products.values()) add(p.name, p);
+  return m;
+}
+ON_CHANGE.imgBulkFile = async el => {
+  const files = [...(el.files || [])]; if (!files.length) return;
+  const out = $("#imgBulkOut"), idx = imgBulkIndex(), ok = [], miss = [];
+  for (let i = 0; i < files.length; i++) {
+    out.textContent = `Đang xử lý ${i + 1}/${files.length}…`;
+    const f = files[i], base = f.name.replace(/\.[^.]+$/, ""), p = idx.get(norm(base));
+    if (!p) { miss.push(f.name); continue; }
+    try { ok.push({ pid: p.id, data: await fileToImg(f), name: p.name }); } catch (e) { miss.push(f.name + " (không đọc được)"); }
+  }
+  let saved = 0, err = "";
+  for (let i = 0; i < ok.length; i += 15) {
+    try { const r = await api("POST", "/api/products/images", { items: ok.slice(i, i + 15).map(x => ({ pid: x.pid, data: x.data })) }); saved += r.saved; }
+    catch (e) { err = e.message; break; }
+  }
+  el.value = "";
+  out.innerHTML = `<div><b>Đã gắn ${saved}/${files.length} ảnh.</b></div>${err ? `<div style="color:var(--red)">${esc(err)}</div>` : ""}${miss.length ? `<div style="margin-top:6px"><b>Không khớp mặt hàng nào (${miss.length}):</b><div>${miss.map(esc).join(", ")}</div></div>` : ""}`;
+  await refresh(true);
 };

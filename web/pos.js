@@ -116,6 +116,7 @@ function renderTiles() {
       else if (e.level) badge = `<span class="pill ${e.level}">HSD ${dm(e.near)}</span>`;
       return `<button class="tile ${e.level ? "exp-" + e.level : ""} ${p.isCombo ? "combo" : ""}" data-act="add" data-id="${esc(p.id)}" title="${esc(p.name)}${p.location ? " · " + esc(p.location) : ""}">
         ${inCart[p.id] ? `<span class="inq num">${fq(inCart[p.id])}</span>` : ""}
+        ${p.img ? `<img class="timg" loading="lazy" alt="" src="${esc(imgUrl(p))}">` : ""}
         <span class="nm">${esc(p.name)}</span><span><span class="tag">${fmt(p.price)}</span></span>
         <span class="st ${cls} num">${st}${p.location ? ` · ${esc(p.location)}` : ""} ${badge}</span></button>`;
     }).join("") + `</div>`;

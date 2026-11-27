@@ -593,9 +593,10 @@ func (db *DB) SaveProduct(req ProductReq, u *User) (*Product, error) {
 		if old == nil {
 			if in.ID == "" { in.ID = newID() }
 			in.Created = nowMs()
+			in.Img = 0
 			in.Stock, in.Lots = 0, nil
 		} else {
-			in.Stock, in.Lots, in.Created = old.Stock, old.Lots, old.Created
+			in.Stock, in.Lots, in.Created, in.Img = old.Stock, old.Lots, old.Created, old.Img
 			if req.Lots != nil { // chỉnh hạn của lô (không đổi số lượng tổng)
 				byID := map[string]Lot{}
 				for _, l := range req.Lots { byID[l.ID] = l }
@@ -645,6 +646,7 @@ func (db *DB) DeleteProduct(id string) error {
 		}
 		delete(s.Products, id)
 		t.del("product", id)
+		if s.Images[id] != nil { delete(s.Images, id); t.del("pimg", id) }
 		return nil
 	})
 }

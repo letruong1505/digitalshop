@@ -101,8 +101,8 @@ func (s *Server) user(r *http.Request) *User {
 	tok := bearerToken(r)
 	if tok == "" {
 		c, err := r.Cookie("thx")
-		if err != nil { return nil }
-		tok = c.Value
+		if err == nil { tok = c.Value } else if strings.HasPrefix(r.URL.Path, "/api/img/") { tok = r.URL.Query().Get("k") }
+		if tok == "" { return nil }
 	}
 	s.sessMu.Lock()
 	ss, ok := s.sessions[tok]
@@ -293,6 +293,7 @@ func (s *Server) routes() {
 	}))
 
 	// ---- mặt hàng ----
+	s.imageRoutes(m)
 	m.HandleFunc("POST /api/products", s.auth("stock", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var req ProductReq
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }

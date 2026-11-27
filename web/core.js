@@ -80,6 +80,19 @@ const isOwner = () => can("manage"); // chủ hoặc quản lý: xóa, hủy, đ
 const seeCost = () => can("cost") || S.settings.staffSeeCost;
 const VIEWS = {};
 // Nút "Nhập từ Excel" đặt ở đầu các trang danh mục; k = loại dữ liệu chọn sẵn
+/* Ảnh mặt hàng: đường dẫn kèm mã phiên (thẻ <img> không gửi được tiêu đề đăng nhập trên ứng dụng Android) */
+const imgUrl = p => p && p.img ? `${srvBase()}/api/img/${encodeURIComponent(p.id)}?v=${p.img}${APP ? "&k=" + encodeURIComponent(store.get("tok", "")) : ""}` : "";
+/* Thu nhỏ ảnh về tối đa `max` điểm ảnh, trả về data URI JPEG (nền trắng cho ảnh PNG trong suốt) */
+async function fileToImg(file, max = 256) {
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("Không đọc được ảnh " + (file.name || ""))); i.src = url; });
+    const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.8);
+  } finally { URL.revokeObjectURL(url); }
+}
 const impBtn = (k, cls = "") => can("import") ? `<button class="btn sm ${cls}" data-act="impGo" data-k="${k}">${icon("import")} Nhập từ Excel</button>` : "";
 const ACT = {};
 const ON_INPUT = {};

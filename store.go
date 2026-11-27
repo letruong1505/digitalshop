@@ -59,6 +59,7 @@ type Product struct {
 	IsCombo  bool        `json:"isCombo"`
 	Items    []ComboItem `json:"items"`
 	Hidden   bool        `json:"hidden"`
+	Img      int64       `json:"img,omitempty"` // >0: có ảnh (thời điểm đổi ảnh, dùng để làm mới bộ nhớ đệm)
 	Created  int64       `json:"created"`
 	Updated  int64       `json:"updated"`
 }
@@ -272,6 +273,7 @@ type State struct {
 	PtsLog    map[string]*PtsEntry  `json:"ptsLog"`
 	SuppReturns map[string]*SuppReturn `json:"suppReturns"`
 	Closings    map[string]*Closing    `json:"closings"`
+	Images      map[string]*PImg       `json:"images"` // ảnh mặt hàng (khóa = mã mặt hàng), tách khỏi danh sách hàng cho nhẹ
 	Orders    map[string]*Order     `json:"orders"`
 	Users     map[string]*User      `json:"users"`
 	InInvs    map[string]*InInvoice `json:"inInvoices"`
@@ -284,7 +286,7 @@ func newState() *State {
 	return &State{
 		Products: map[string]*Product{}, Customers: map[string]*Party{}, Suppliers: map[string]*Party{},
 		Invoices: map[string]*Invoice{}, Receipts: map[string]*Receipt{}, Counts: map[string]*Count{},
-		Cash: map[string]*CashEntry{}, Returns: map[string]*CustReturn{}, PtsLog: map[string]*PtsEntry{}, SuppReturns: map[string]*SuppReturn{}, Closings: map[string]*Closing{}, Orders: map[string]*Order{}, Users: map[string]*User{},
+		Cash: map[string]*CashEntry{}, Returns: map[string]*CustReturn{}, PtsLog: map[string]*PtsEntry{}, SuppReturns: map[string]*SuppReturn{}, Closings: map[string]*Closing{}, Images: map[string]*PImg{}, Orders: map[string]*Order{}, Users: map[string]*User{},
 		InInvs: map[string]*InInvoice{}, InMap: map[string]*InMap{},
 		Counters: map[string]int{},
 		Settings: Settings{Paper: "80", ExpWarn: 30, ExpDanger: 7, MinMargin: 10, Footer: "Cảm ơn quý khách, hẹn gặp lại!", BlockExpired: true},
@@ -303,6 +305,7 @@ func (s *State) fill() {
 	if s.PtsLog == nil { s.PtsLog = map[string]*PtsEntry{} }
 	if s.SuppReturns == nil { s.SuppReturns = map[string]*SuppReturn{} }
 	if s.Closings == nil { s.Closings = map[string]*Closing{} }
+	if s.Images == nil { s.Images = map[string]*PImg{} }
 	if s.Orders == nil { s.Orders = map[string]*Order{} }
 	if s.Users == nil { s.Users = map[string]*User{} }
 	if s.InInvs == nil { s.InInvs = map[string]*InInvoice{} }
@@ -401,6 +404,8 @@ func (db *DB) apply(r rec) {
 		applyMap(s.Returns, r)
 	case "closing":
 		applyMap(s.Closings, r)
+	case "pimg":
+		applyMap(s.Images, r)
 	case "sreturn":
 		applyMap(s.SuppReturns, r)
 	case "ptslog":
