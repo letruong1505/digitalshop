@@ -16,9 +16,9 @@ mf.write_text(s, encoding="utf-8")
 for j in (root / "app/src/main/java").rglob("MainActivity.java"):
     t = j.read_text(encoding="utf-8")
     if "FLAG_KEEP_SCREEN_ON" not in t:
-        t = t.replace("import com.getcapacitor.BridgeActivity;", "import android.os.Bundle;\nimport android.view.WindowManager;\nimport com.getcapacitor.BridgeActivity;", 1)
+        t = t.replace("import com.getcapacitor.BridgeActivity;", "import android.content.Intent;\nimport android.net.Uri;\nimport android.os.Bundle;\nimport android.view.WindowManager;\nimport android.webkit.DownloadListener;\nimport com.getcapacitor.BridgeActivity;", 1)
         t = re.sub(r"public class MainActivity extends BridgeActivity \{\s*\}",
-                   "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);\n    }\n}", t, count=1)
+                   "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);\n        // bấm liên kết tải .apk: chuyển cho trình duyệt hệ thống tải về (WebView mặc định không tải file)\n        this.bridge.getWebView().setDownloadListener(new DownloadListener() {\n            @Override\n            public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {\n                try {\n                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));\n                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);\n                    startActivity(i);\n                } catch (Exception e) { }\n            }\n        });\n    }\n}", t, count=1)
         j.write_text(t, encoding="utf-8")
 
 # 3. build.gradle: phiên bản + khóa ký

@@ -202,12 +202,12 @@ function openDisplayMode() { const u = store.get("displayUrl", ""); if (u) locat
 /* ---------- thông báo có bản Android mới ---------- */
 let apkAt = 0;
 const verNum = v => String(v || "0").split(".").reduce((a, x) => a * 1000 + (parseInt(x, 10) || 0), 0);
-async function apkCheck() {
-  if (!APP || !window.DS_APK || S.offline || Date.now() - apkAt < 30 * 60 * 1000) return;
+async function apkCheck(force) {
+  if (!APP || !window.DS_APK || S.offline || (!force && Date.now() - apkAt < 30 * 60 * 1000)) return;
   apkAt = Date.now();
   try {
     const r = await api("GET", "/api/android/latest");
-    if (!r || verNum(r.version) <= verNum(window.DS_APK) || store.get("apkSkip", "") === r.version) return;
+    if (!r || verNum(r.version) <= verNum(window.DS_APK) || (!force && store.get("apkSkip", "") === r.version)) return;
     let el = $("#apkBar"); if (el) el.remove();
     el = document.createElement("div"); el.id = "apkBar"; el.className = "apkbar";
     el.innerHTML = `<a href="${esc(r.url)}">Có bản Digital Shop ${esc(r.version)} mới (đang dùng ${esc(window.DS_APK)}). Bấm để tải, rồi mở file để cập nhật. Dữ liệu được giữ nguyên.</a><button type="button" aria-label="Để sau" data-act="apkSkip" data-v="${esc(r.version)}">×</button>`;

@@ -720,7 +720,11 @@ VIEWS.settings = function () {
         <div id="extBox" class="ps">Đang dò ổ USB…</div></div>
       <div id="bkList"><div class="ps">Đang tải danh sách…</div></div></div>
     <div class="card row" style="margin-top:14px"><div class="grow"><h2>Tắt phần mềm</h2><span class="ps">Đóng cửa sổ này thì phần mềm vẫn chạy nền (biểu tượng cạnh đồng hồ) cho điện thoại và màn hình khách. Nút này lưu dữ liệu rồi tắt hẳn.</span></div><button class="btn danger" data-act="shutdown" data-confirm="Bấm lần nữa để tắt">Tắt phần mềm</button></div>` : ""}
-    ${own ? `<div class="card stack" style="margin-top:14px"><h2>Cập nhật phần mềm</h2>
+    ${APP ? `<div class="card stack" style="margin-top:14px"><h2>Cập nhật ứng dụng Android</h2>
+      <div class="ps">Ứng dụng trên điện thoại này: <b>${esc(window.DS_APK || "?")}</b> · Phần mềm trên máy tính: <b>${esc(S.appVersion || "")}</b>. Ứng dụng điện thoại và phần mềm máy tính cập nhật riêng với nhau.</div>
+      <div id="apkBox" class="ps"></div>
+      <div class="row"><button class="btn" data-act="apkCheckNow">Kiểm tra bản Android mới</button></div></div>` : ""}
+    ${own ? `<div class="card stack" style="margin-top:14px"><h2>Cập nhật phần mềm máy tính</h2>
       <div class="ps">Đang dùng bản <b>${esc(S.appVersion || "")}</b>. Cần có internet. Dữ liệu bán hàng được giữ nguyên khi cập nhật.</div>
       <div id="updBox" class="ps"></div>
       <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn" data-act="updCheck">Kiểm tra bản mới</button>
@@ -1001,6 +1005,16 @@ ACT.licKey = async () => {
 };
 
 /* ---------- cập nhật phần mềm ---------- */
+ACT.apkCheckNow = async () => {
+  const box = $("#apkBox"); if (box) box.textContent = "Đang kiểm tra…";
+  if (!window.DS_APK) { if (box) box.textContent = "Bản cài này chưa ghi số phiên bản, hãy cài bản mới nhất từ trang tải."; return; }
+  try {
+    const r = await api("GET", "/api/android/latest");
+    if (!r) throw new Error("Chưa có thông tin bản Android");
+    if (verNum(r.version) <= verNum(window.DS_APK)) { if (box) box.innerHTML = `Bạn đang dùng bản Android mới nhất (${esc(window.DS_APK)}).`; return; }
+    if (box) box.innerHTML = `<div style="color:var(--text)"><b>Có bản Android mới ${esc(r.version)}</b></div><div style="margin-top:6px"><a class="btn pri" href="${esc(r.url)}">Tải bản ${esc(r.version)}</a></div><div class="ps" style="margin-top:6px">Tải xong, mở file vừa tải và bấm Cài đặt (Cập nhật). Dữ liệu được giữ nguyên. Nếu Android hỏi, cho phép cài ứng dụng từ trình duyệt.</div>`;
+  } catch (e) { if (box) box.textContent = e.net ? "Không kết nối được máy tính. Kiểm tra mạng rồi thử lại." : (e.message || "Không kiểm tra được"); }
+};
 ACT.updCheck = async () => {
   const box = $("#updBox"); if (box) box.textContent = "Đang kiểm tra…";
   const r = await run(() => api("POST", "/api/update/check"));
