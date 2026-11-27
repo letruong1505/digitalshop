@@ -67,9 +67,19 @@ async function offBar() {
   if (!S.offline && !pending.length) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement("div"); el.id = "offBar"; el.setAttribute("data-act", "offList"); document.body.appendChild(el); }
   const n = pending.length;
-  el.className = "offbar " + (S.offline ? "off" : bad ? "bad" : "sync");
-  el.textContent = S.offline ? `Mất kết nối máy chủ · bán hàng vẫn lưu trên máy${n ? ` · ${n} hóa đơn chờ đẩy` : ""}`
+  const st = S.offline ? "off" : bad ? "bad" : "sync";
+  const full = S.offline ? `Mất kết nối máy chủ · bán hàng vẫn lưu trên máy${n ? ` · ${n} hóa đơn chờ đẩy` : ""}`
     : bad ? `${bad} hóa đơn chưa đẩy được lên máy chủ, bấm để xem` : `Đang đẩy ${n} hóa đơn về máy chủ…`;
+  const small = S.offline ? "Ngoại tuyến" + (n ? " · " + n : "") : bad ? bad + " lỗi" : "Đang đẩy " + n;
+  // Thông báo đầy đủ chỉ hiện vài giây khi trạng thái đổi, sau đó thu thành nhãn nhỏ ở trên cùng để không che thanh điều hướng
+  const key = st + ":" + (bad || n);
+  if (el._key !== key) {
+    el._key = key; el.classList.add("full");
+    clearTimeout(el._t); el._t = setTimeout(() => { el.classList.remove("full"); el.textContent = small; }, 5000);
+  }
+  el.className = "offbar " + st + (el.classList.contains("full") ? " full" : "");
+  el.textContent = el.classList.contains("full") ? full : small;
+  el.title = full;
 }
 
 /* ---------- bán hàng ngoại tuyến ---------- */
