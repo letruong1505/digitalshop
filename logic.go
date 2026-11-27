@@ -93,6 +93,16 @@ type SaleReq struct {
 func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 	var out *Invoice
 	err := db.Do(func(s *State, t *Tx) error {
+		var e error
+		out, e = createInvoiceTx(s, t, req, u)
+		return e
+	})
+	return out, err
+}
+
+func createInvoiceTx(s *State, t *Tx, req SaleReq, u *User) (*Invoice, error) {
+	var out *Invoice
+	err := func() error {
 		if req.CID != "" {
 			if inv, ok := s.Invoices[req.CID]; ok { out = inv; return nil } // gửi lại do mạng chập chờn
 		}
@@ -219,7 +229,7 @@ func (db *DB) CreateInvoice(req SaleReq, u *User) (*Invoice, error) {
 		t.put("counters", "", s.Counters)
 		out = inv
 		return nil
-	})
+	}()
 	return out, err
 }
 
@@ -230,7 +240,11 @@ func unitPrice(p *Product, unit string, ratio float64) float64 {
 }
 
 func (db *DB) VoidInvoice(id string, u *User) error {
-	return db.Do(func(s *State, t *Tx) error {
+	return db.Do(func(s *State, t *Tx) error { return voidInvoiceTx(s, t, id, u) })
+}
+
+func voidInvoiceTx(s *State, t *Tx, id string, u *User) error {
+	{
 		inv := s.Invoices[id]
 		if inv == nil { return uerr("Không tìm thấy hóa đơn") }
 		if inv.Void { return uerr("Hóa đơn đã hủy trước đó") }
@@ -263,7 +277,7 @@ func (db *DB) VoidInvoice(id string, u *User) error {
 		inv.Note = strings.TrimSpace(inv.Note + " (hủy bởi " + u.Name + ")")
 		t.put("invoice", inv.ID, inv)
 		return nil
-	})
+	}
 }
 
 // ---------- nhập hàng ----------

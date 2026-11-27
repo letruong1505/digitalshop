@@ -118,6 +118,8 @@ type Invoice struct {
 	Src      string  `json:"src,omitempty"` // "import" = lịch sử nhập từ phần mềm khác
 	Void     bool    `json:"void"`
 	VoidAt   int64   `json:"voidAt,omitempty"`
+	EditOf   string  `json:"editOf,omitempty"`   // mã hóa đơn cũ mà hóa đơn này thay thế (sửa đơn)
+	EditedTo string  `json:"editedTo,omitempty"` // hóa đơn cũ đã bị thay bằng hóa đơn mới này
 }
 
 type Receipt struct {

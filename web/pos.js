@@ -143,6 +143,7 @@ function renderCart() {
   const cust = t.custId ? S.customers.get(t.custId) : null;
   let h = `<div class="tabs" role="tablist">${S.tabs.map((x, i) => { const n = x.lines.length; return `<button role="tab" data-act="tab" data-i="${i}" aria-current="${i === S.tabIdx}">HĐ ${i + 1}${n ? ` <span class="pill mute">${n}</span>` : ""}${x.orderId ? ' <span class="pill amber">đặt</span>' : ""}${S.tabs.length > 1 ? `<span class="tx" data-act="closeTab" data-i="${i}" title="Đóng">×</span>` : ""}</button>`; }).join("")}
     <button data-act="newTab" title="Hóa đơn mới (F4)">+</button><span class="grow"></span><button class="x only-m" data-act="closeCart" aria-label="Đóng hóa đơn">×</button></div>`;
+  if (t.editId) h += `<div class="editbar"><span class="grow">Đang sửa hóa đơn <b>${esc(t.editCode || "")}</b>: hóa đơn cũ sẽ bị thay bằng hóa đơn này khi thanh toán</span><button class="btn sm" data-act="editCancel">Bỏ sửa</button></div>`;
   h += `<div class="cust">`;
   if (S.custOpen) {
     h += `<div class="search">${icon("search")}<input id="custQ" class="in" autocomplete="off" placeholder="Tìm khách theo tên, số điện thoại (F8)" value="${esc(S.custQ)}"></div><div class="dd" id="custDD">${pickList("customer", S.custQ, "posCust")}</div>`;
@@ -160,7 +161,7 @@ function renderCart() {
         <div class="muted small">${esc(s.lines.map(l => `${l.name} ×${fq(l.qty)}`).join(", "))}</div>
         ${s.given > s.total ? `<div class="num">Khách đưa ${money(s.given)} · Thối lại <b>${money(s.given - s.total)}</b></div>` : ""}
         ${s.debt ? `<div class="num" style="color:var(--red)">Ghi nợ ${money(s.debt)} cho ${esc(s.custName)}</div>` : ""}
-        <div class="row"><button class="btn sm" data-act="printLast">${icon("print")} In hóa đơn</button><button class="btn sm" data-act="copyLast">Sao chép</button></div></div>`;
+        <div class="row"><button class="btn sm" data-act="printLast">${icon("print")} In hóa đơn</button><button class="btn sm" data-act="copyLast">Sao chép</button>${canEditInv(s) ? `<button class="btn sm" data-act="editInv" data-id="${esc(s.id)}">Sửa đơn / đổi thanh toán</button>` : ""}</div></div>`;
     }
     $("#cart").innerHTML = h; renderCartBar(); return;
   }
@@ -345,6 +346,31 @@ ACT.openCart = () => document.body.classList.add("cart-open");
 ACT.closeCart = () => document.body.classList.remove("cart-open");
 ACT.printLast = () => S.lastSale && printHtml(receiptHtml(S.lastSale));
 ACT.copyLast = () => S.lastSale && copyText(receiptText(S.lastSale), "Đã sao chép hóa đơn");
+/* Sửa đơn sau thanh toán: mở lại các dòng của hóa đơn trong một tab mới; thanh toán xong thì thay hóa đơn cũ */
+function canEditInv(v) {
+  if (!v || v.void || v.editedTo || v.src === "import" || S.offline) return false;
+  return can("manage") || (can("sell") && v.staff === S.me.name && Date.now() - v.time <= 30 * 60 * 1000);
+}
+ACT.editInv = b => {
+  const v = (S.lastSale && S.lastSale.id === b.dataset.id) ? S.lastSale : (typeof findInv === "function" ? findInv(b.dataset.id) : null);
+  if (!v) return toast("Không tìm thấy hóa đơn", true);
+  if (!canEditInv(v)) return toast("Chỉ sửa được hóa đơn của bạn trong 30 phút. Hóa đơn cũ hơn cần quản lý (quyền hủy hóa đơn)", true);
+  if (S.tabs.some(x => x.editId === v.id)) { S.tabIdx = S.tabs.findIndex(x => x.editId === v.id); } else {
+    if (S.tabs.length >= 9) return toast("Tối đa 9 hóa đơn chờ", true);
+    const t = newTab();
+    t.editId = v.id; t.editCode = v.code; t.custId = v.custId || ""; t.note = (v.note || "").replace(/\s*\(.*\)\s*$/, "");
+    t.lines = v.lines.filter(l => S.products.has(l.pid)).map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio || 1, qty: l.qty, price: l.price }));
+    t.method = v.bank > 0 ? "bank" : (v.debt > 0 && !(v.cash > 0)) ? "debt" : "cash";
+    const man = Math.max(0, (v.disc || 0) - (v.promo || 0) - (v.ptsDisc || 0));
+    t.disc = man ? fmt(man) : ""; t.pts = v.ptsUsed || 0;
+    S.tabs.push(t); S.tabIdx = S.tabs.length - 1;
+  }
+  S.lastSale = null; saveTabs();
+  if (S.view !== "pos") go("pos"); else { renderTiles(); renderCart(); }
+  closeSheet();
+  document.body.classList.add("cart-open");
+};
+ACT.editCancel = () => { const t = curTab(); S.tabs.splice(S.tabIdx, 1); if (!S.tabs.length) S.tabs.push(newTab()); if (S.tabIdx >= S.tabs.length) S.tabIdx = S.tabs.length - 1; saveTabs(); renderTiles(); renderCart(); };
 ACT.checkout = () => checkout();
 
 let busy = false;
@@ -360,7 +386,10 @@ async function checkout() {
     const paidNote = t.method === "bank" && t.pay && t.pay.status === "paid" && t.pay.amount === T.total ? `CK đã xác nhận tự động (${t.pay.code})` : "";
     const body = { cid: t.cid, lines: t.lines.map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio, qty: l.qty, price: l.price })), disc: T.disc, points: T.pts || 0, method: t.method, given: g, custId: t.custId, note: [t.note, paidNote].filter(Boolean).join(" · "), orderId: t.orderId };
     let inv;
-    if (APP && S.offline) inv = await offSale(body, t, T);
+    if (t.editId) {
+      if (S.offline) throw new Error("Đang mất kết nối, chưa sửa được đơn");
+      body.cid = ""; inv = await api("POST", `/api/invoices/${t.editId}/edit`, body);
+    } else if (APP && S.offline) inv = await offSale(body, t, T);
     else {
       try { inv = await api("POST", "/api/invoices", body); }
       catch (e) { if (APP && e.net) { setOffline(true); t.promo = offPromo(t); inv = await offSale(body, t, tabTotals(t)); } else throw e; } // gửi lỗi mạng: lưu trên máy, đẩy sau (máy chủ tự bỏ qua nếu đã nhận)
@@ -372,7 +401,7 @@ async function checkout() {
     if (S.tabIdx >= S.tabs.length) S.tabIdx = S.tabs.length - 1;
     saveTabs();
     S.posQ = "";
-    toast(inv.debt ? `Đã ghi nợ ${money(inv.debt)} cho ${inv.custName}` : `Đã bán ${money(inv.total)}${inv.given > inv.total ? " · thối " + money(inv.given - inv.total) : ""}`);
+    toast(t.editId ? `Đã sửa đơn ${t.editCode} → ${inv.code}` : inv.debt ? `Đã ghi nợ ${money(inv.debt)} cho ${inv.custName}` : `Đã bán ${money(inv.total)}${inv.given > inv.total ? " · thối " + money(inv.given - inv.total) : ""}`);
     await refresh(true);
     if (S.settings.autoPrint) printHtml(receiptHtml(inv));
   } catch (e) { toast(e.message, true); }

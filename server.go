@@ -424,6 +424,13 @@ func (s *Server) routes() {
 		if err != nil { failErr(w, err); return }
 		writeJSON(w, inv)
 	}))
+	m.HandleFunc("POST /api/invoices/{id}/edit", s.auth("sell", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var req SaleReq
+		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
+		inv, err := s.db.ReplaceInvoice(r.PathValue("id"), req, u)
+		if err != nil { failErr(w, err); return }
+		writeJSON(w, inv)
+	}))
 	m.HandleFunc("POST /api/invoices/{id}/void", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
 		if err := s.db.VoidInvoice(r.PathValue("id"), u); err != nil { failErr(w, err); return }
 		writeJSON(w, map[string]bool{"ok": true})
