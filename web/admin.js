@@ -478,11 +478,11 @@ async function renderPnl(tabBar, a, b) {
       <div class="stat ${p.net >= 0 ? "good" : "bad"}"><div class="k">Lợi nhuận ròng</div><div class="v">${p.net < 0 ? "− " : ""}${money(Math.abs(p.net))}</div></div></div>
     <div class="grid2" style="margin-top:14px;align-items:start"><div class="section"><h2>Báo cáo lãi lỗ</h2><div class="tbl"><table><tbody>
       ${line("Doanh thu bán hàng", p.revenue + p.returns)}${p.returns ? line("Khách trả hàng", p.returns, { neg: true, ind: true }) : ""}${line("Doanh thu thuần", p.revenue, { bold: true })}
-      ${line("Giá vốn hàng bán", p.cogs, { neg: true })}${line("LÃI GỘP", p.gross, { bold: true, color: col(p.gross) })}
+      ${line("Giá vốn hàng bán", p.cogs, { neg: true })}${line("LÃI GỘP", p.gross, { bold: true, color: col(p.gross), neg: p.gross < 0 })}
       ${p.loss ? line("Hàng hủy, hết hạn, hao hụt kho", p.loss, { neg: true }) : ""}${p.diff ? line(p.diff > 0 ? "Tiền két thừa khi chốt ca" : "Tiền két thiếu khi chốt ca", p.diff, { neg: p.diff < 0 }) : ""}
       ${p.otherIn.map(x => line(esc(x.cat), x.amount, { ind: true })).join("")}${p.otherInT ? line("Thu nhập khác", p.otherInT, { bold: true }) : ""}
       ${p.expenses.map(x => line(esc(x.cat), x.amount, { neg: true, ind: true })).join("")}${p.expenseT ? line("Tổng chi phí", p.expenseT, { neg: true, bold: true }) : `<tr><td class="ps" colspan="2">Chưa có khoản chi nào trong sổ quỹ. Ghi tiền điện, thuê mặt bằng, lương… ở mục Sổ quỹ để tính lãi ròng đúng.</td></tr>`}
-      ${line("LỢI NHUẬN RÒNG", p.net, { bold: true, color: col(p.net) })}</tbody></table></div>
+      ${line("LỢI NHUẬN RÒNG", p.net, { bold: true, color: col(p.net), neg: p.net < 0 })}</tbody></table></div>
       <p class="ps" style="margin-top:8px">Không tính vào lãi lỗ: tiền nhập hàng (hàng chưa bán nằm trong kho), thu nợ khách, trả nợ NCC, hoàn tiền trả hàng${p.draw ? `, chủ rút tiền chi tiêu ${money(p.draw)}` : ""}${p.capital ? `, góp vốn ${money(p.capital)}` : ""}.</p></div>
       <div class="section"><h2>Theo tháng</h2>${p.months.length ? `<div class="tbl"><table><thead><tr><th>Tháng</th><th class="r">Doanh thu</th><th class="r">Lãi gộp</th><th class="r">Lãi ròng</th></tr></thead><tbody>${p.months.map(m => `<tr><td>${esc(m.month.slice(5) + "/" + m.month.slice(0, 4))}</td><td class="r num">${fmt(m.rev)}</td><td class="r num">${fmt(m.gross)}</td><td class="r num" style="color:${col(m.net)}"><b>${fmt(m.net)}</b></td></tr>`).join("")}</tbody></table></div><div class="ps" style="margin-top:6px">Lãi ròng theo tháng = lãi gộp − chi phí + thu nhập khác (chưa gồm hao hụt kho và chênh lệch két).</div>` : `<div class="ps">Chưa có dữ liệu.</div>`}</div></div>`;
 }
