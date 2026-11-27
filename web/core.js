@@ -61,12 +61,12 @@ const icon = (k, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="
 // Mục thứ ba: quyền cần có (nhiều quyền cách nhau "|"; có một trong số đó là được; bỏ trống = ai cũng vào được)
 const NAV = [
   ["pos", "Bán hàng", "sell"], ["orders", "Đơn đặt / Zalo", "sell"], ["products", "Hàng hóa"], ["receipts", "Nhập hàng", "stock|money"], ["inin", "Hóa đơn đầu vào", "tax"], ["counts", "Kiểm kho", "stock"],
-  ["customers", "Khách hàng", "sell|money"], ["suppliers", "Nhà cung cấp", "stock|money"], ["cash", "Sổ quỹ", "money"], ["report", "Báo cáo", "report"], ["combos", "Combo & khuyến mãi", "manage"],
+  ["customers", "Khách hàng", "sell|money"], ["suppliers", "Nhà cung cấp", "stock|money"], ["cash", "Sổ quỹ", "money"], ["report", "Báo cáo", "report"], ["combos", "Combo & khuyến mãi", "manage|marketing"],
   ["import", "Nhập từ Excel", "import"], ["settings", "Cài đặt", "admin"],
 ];
 const ROLE_NAME = { owner: "Chủ cửa hàng", manager: "Quản lý", cashier: "Thu ngân", warehouse: "Thủ kho", accountant: "Kế toán" };
-const PERM_PRESET = { owner: ["manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price"], manager: ["manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price"], cashier: ["sell"], warehouse: ["stock", "cost"], accountant: ["money", "report", "tax", "cost"] };
-const PERM_LABEL = [["sell", "Bán hàng, đơn đặt"], ["stock", "Hàng hóa, nhập hàng, kiểm kho"], ["money", "Sổ quỹ, công nợ, thu nợ khách"], ["report", "Báo cáo, xuất Excel"], ["cost", "Xem giá vốn và lợi nhuận"], ["price", "Sửa giá khi bán"], ["tax", "Hóa đơn đầu vào"], ["import", "Nhập dữ liệu từ Excel"], ["manage", "Xóa, hủy hóa đơn, điều chỉnh công nợ"]];
+const PERM_PRESET = { owner: ["manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price", "marketing"], manager: ["manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price", "marketing"], cashier: ["sell"], warehouse: ["stock", "cost"], accountant: ["money", "report", "tax", "cost"] };
+const PERM_LABEL = [["sell", "Bán hàng, đơn đặt"], ["stock", "Hàng hóa, nhập hàng, kiểm kho"], ["money", "Sổ quỹ, công nợ, thu nợ khách"], ["report", "Báo cáo, xuất Excel"], ["cost", "Xem giá vốn và lợi nhuận"], ["price", "Sửa giá khi bán"], ["tax", "Hóa đơn đầu vào"], ["import", "Nhập dữ liệu từ Excel"], ["manage", "Xóa, hủy hóa đơn, điều chỉnh công nợ"], ["marketing", "Khuyến mãi, chiến dịch giá"]];
 const can = p => !p || (S.me && (S.me.perms || []).some(x => p.split("|").includes(x)));
 const navOK = n => can(n[2]);
 
@@ -483,7 +483,7 @@ function fitPage(P, widthMm) {
 function receiptHtml(inv) {
   const st = S.settings, paper = st.paper || "80";
   const cls = paper === "58" ? "rc p58" : paper === "a5" ? "rc a5" : "rc";
-  const lines = (inv.lines || []).map(l => `<tr><td colspan="3">${esc(l.name)}</td></tr><tr><td>${fq(l.qty)} ${esc(l.unit || "")} x ${fmt(l.price)}</td><td></td><td class="r">${fmt(l.qty * l.price)}</td></tr>`).join("");
+  const lines = (inv.lines || []).map(l => `<tr><td colspan="3">${esc(l.name)}</td></tr><tr><td>${fq(l.qty)} ${esc(l.unit || "")} x ${fmt(l.price)}</td><td></td><td class="r">${fmt(l.qty * l.price)}</td></tr>${l.promoName ? `<tr><td colspan="2" style="font-size:.92em">KM ${esc(l.promoName)}: giá gốc ${fmt(l.price)}</td><td class="r">-${fmt(l.promoDisc || 0)}</td></tr>` : ""}`).join("");
   let pay = "";
   if (inv.cash) pay += `<tr><td>Tiền mặt</td><td colspan="2" class="r">${fmt(inv.cash)}</td></tr>`;
   if (inv.given && inv.given > inv.total) pay += `<tr><td>Khách đưa</td><td colspan="2" class="r">${fmt(inv.given)}</td></tr><tr><td>Tiền thối</td><td colspan="2" class="r">${fmt(inv.given - inv.total)}</td></tr>`;

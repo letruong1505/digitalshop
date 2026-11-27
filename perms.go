@@ -10,8 +10,8 @@ import (
 // sell (bán hàng, đơn đặt), stock (hàng hóa, nhập hàng, kiểm kho), money (sổ quỹ, công nợ), report (báo cáo, xuất Excel),
 // tax (hóa đơn đầu vào), import (nhập từ Excel), cost (xem giá vốn, lợi nhuận), price (sửa giá khi bán).
 var rolePerms = map[string][]string{
-	"owner":      {"admin", "manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price"},
-	"manager":    {"manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price"},
+	"owner":      {"admin", "manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price", "marketing"},
+	"manager":    {"manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price", "marketing"},
 	"cashier":    {"sell"},
 	"warehouse":  {"stock", "cost"},
 	"accountant": {"money", "report", "tax", "cost"},
@@ -26,7 +26,7 @@ func normRole(r string) string {
 }
 
 // allPerms: các quyền có thể gán riêng cho nhân viên. Quyền "admin" chỉ thuộc chủ cửa hàng.
-var allPerms = []string{"manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price"}
+var allPerms = []string{"manage", "sell", "stock", "money", "report", "tax", "import", "cost", "price", "marketing"}
 
 func (u *User) perms() []string {
 	r := normRole(u.Role)

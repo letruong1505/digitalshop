@@ -149,13 +149,15 @@ func createInvoiceTx(s *State, t *Tx, req SaleReq, u *User) (*Invoice, error) {
 			}
 		}
 		sub = r0(sub)
-		promo, hits := promoDisc(s, lines, req.CustID, time.Now())
+		promo, hits, per := promoCalc(s, lines, req.CustID, time.Now())
+		for i := range lines { if per[i].Amount > 0 { lines[i].PromoName, lines[i].PromoDisc = per[i].Name, per[i].Amount } }
 		saleTime := nowMs()
 		if req.Offline {
 			if req.Time > saleTime-30*24*3600*1000 && req.Time <= saleTime+5*60*1000 { saleTime = req.Time }
 			promo, hits = req.PromoDisc, nil
 			if promo < 0 { promo = 0 }
-			if strings.TrimSpace(req.PromoNote) != "" { hits = []PromoHit{{Name: strings.TrimSpace(req.PromoNote)}} }
+			for i := range lines { lines[i].PromoName, lines[i].PromoDisc = "", 0 }
+			if strings.TrimSpace(req.PromoNote) != "" { hits = []PromoHit{{Name: strings.TrimSpace(req.PromoNote), Amount: promo}} }
 		}
 		if promo > sub { promo = sub }
 		disc := r0(req.Disc)
@@ -180,7 +182,7 @@ func createInvoiceTx(s *State, t *Tx, req SaleReq, u *User) (*Invoice, error) {
 		total := sub - disc - promo - ptsDisc
 		promoNote := ""
 		for i, h := range hits { if i > 0 { promoNote += ", " }; promoNote += h.Name }
-		inv := &Invoice{ID: req.CID, Time: saleTime, Lines: lines, Sub: sub, Disc: disc + promo + ptsDisc, Promo: promo, PtsUsed: ptsUsed, PtsDisc: ptsDisc, PromoNote: promoNote, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
+		inv := &Invoice{ID: req.CID, Time: saleTime, Lines: lines, Sub: sub, Disc: disc + promo + ptsDisc, Promo: promo, PtsUsed: ptsUsed, PtsDisc: ptsDisc, PromoNote: promoNote, PromoHits: hits, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
 		if inv.ID == "" { inv.ID = newID() }
 		if cust != nil { inv.CustID, inv.CustName = cust.ID, cust.Name }
 		switch req.Method {

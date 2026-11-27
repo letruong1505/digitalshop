@@ -136,7 +136,9 @@ ACT.offDrop = async b => { await obDel(b.dataset.cid); closeSheet(); offBar(); t
 function offPromo(t) {
   const now = new Date(), d = dkey(now), cur = now.getHours() * 60 + now.getMinutes();
   const hm_ = s => /^\d\d:\d\d$/.test(s || "") ? +s.slice(0, 2) * 60 + +s.slice(3) : -1;
-  const act = (S.settings.promos || []).filter(p => {
+  const camps = [];
+  for (const c of (S.settings.campaigns || [])) (c.lines || []).forEach((l, i) => camps.push({ name: c.name, active: c.active, kind: l.kind, value: l.value, scope: l.scope, target: l.target, from: c.from, to: c.to }));
+  const act = (S.settings.promos || []).concat(camps).filter(p => {
     if (!p.active || !(p.value > 0)) return false;
     if (p.from && d < p.from) return false; if (p.to && d > p.to) return false;
     if (p.days && p.days.length && !p.days.includes(now.getDay())) return false;
@@ -149,11 +151,12 @@ function offPromo(t) {
   const cust = t.custId ? S.customers.get(t.custId) : null;
   const spend = cust ? cust.spend || 0 : 0;
   let tier = 0; tiers.forEach((x, i) => { if (spend >= x.min) tier = i + 1; });
-  const by = {}; let total = 0;
+  const by = {}, per = []; let total = 0;
   const norm_ = s => String(s || "").trim().toLowerCase();
   for (const l of t.lines) {
-    const amount = l.qty * l.price; if (amount <= 0) continue;
+    const amount = l.qty * l.price; if (amount <= 0) { per.push({ name: "", disc: 0 }); continue; }
     const pr = S.products.get(l.pid); let best = 0, name = "";
+    if (pr) { const cu = l.ratio > 1 && l.unit !== pr.unit ? (((pr.units || []).find(c => c.name === l.unit && c.ratio === l.ratio) || {}).price ?? pr.price * l.ratio) : pr.price * (l.ratio || 1); if (l.price < cu - 0.5) { per.push({ name: "", disc: 0 }); continue; } }
     for (const p of act) {
       if (p.minTier > 0 && tier < p.minTier) continue;
       if (p.scope === "product" && p.target !== l.pid) continue;
@@ -162,9 +165,10 @@ function offPromo(t) {
       if (x > best) { best = x; name = p.name; }
     }
     if (best > 0) { total += best; by[name] = (by[name] || 0) + best; }
+    per.push({ name: best > 0 ? name : "", disc: Math.round(best) });
   }
   total = Math.round(total);
-  return total > 0 ? { disc: total, hits: Object.entries(by).map(([name, a]) => ({ name, amount: Math.round(a) })) } : null;
+  return total > 0 ? { disc: total, hits: Object.entries(by).map(([name, a]) => ({ name, amount: Math.round(a) })), lines: per } : null;
 }
 
 /* ---------- màn hình kết nối máy chủ (lần đầu và khi đổi) ---------- */

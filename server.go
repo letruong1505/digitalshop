@@ -457,7 +457,7 @@ func (s *Server) routes() {
 	}))
 
 	// ---- khuyến mãi, hạng khách ----
-	m.HandleFunc("POST /api/promos", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
+	m.HandleFunc("POST /api/promos", s.auth("manage|marketing", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var req struct {
 			Promos []Promo `json:"promos"`
 			Tiers  []Tier  `json:"tiers"`
@@ -465,6 +465,16 @@ func (s *Server) routes() {
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		if err := s.db.SavePromos(req.Promos, req.Tiers); err != nil { failErr(w, err); return }
 		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	m.HandleFunc("POST /api/campaigns", s.auth("marketing", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var req struct{ Campaigns []Campaign `json:"campaigns"` }
+		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
+		if err := s.db.SaveCampaigns(req.Campaigns); err != nil { failErr(w, err); return }
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+	m.HandleFunc("GET /api/promo/report", s.auth("report|marketing", func(w http.ResponseWriter, r *http.Request, u *User) {
+		from, to := dates(r)
+		writeJSON(w, s.db.PromoReport(from, to))
 	}))
 	m.HandleFunc("POST /api/loyalty", s.auth("admin|manage", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var l Loyalty
@@ -490,18 +500,29 @@ func (s *Server) routes() {
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		var disc float64
 		var hits []PromoHit
+		per := make([]LineDisc, len(req.Lines))
 		s.db.Read(func(st *State) {
 			lines := make([]Line, 0, len(req.Lines))
-			for _, l := range req.Lines {
+			idx := make([]int, 0, len(req.Lines))
+			for i, l := range req.Lines {
 				p := st.Products[l.PID]
 				if p == nil || l.Qty <= 0 { continue }
 				if l.Ratio <= 0 { l.Ratio = 1 }
 				if !u.editPrice(&st.Settings) { l.Price = unitPrice(p, l.Unit, l.Ratio) }
 				lines = append(lines, l)
+				idx = append(idx, i)
 			}
-			disc, hits = promoDisc(st, lines, req.CustID, time.Now())
+			var pl []LineDisc
+			disc, hits, pl = promoCalc(st, lines, req.CustID, time.Now())
+			for k, i := range idx { per[i] = pl[k] }
 		})
-		writeJSON(w, map[string]any{"disc": disc, "hits": hits})
+		type ld struct {
+			Name string  `json:"name"`
+			Disc float64 `json:"disc"`
+		}
+		outl := make([]ld, len(per))
+		for i, x := range per { outl[i] = ld{x.Name, x.Amount} }
+		writeJSON(w, map[string]any{"disc": disc, "hits": hits, "lines": outl})
 	}))
 
 	// ---- nhập hàng ----
@@ -848,6 +869,7 @@ func (s *Server) routes() {
 			ns.PayProvider, ns.SepayToken, ns.PayosClientID, ns.PayosAPIKey, ns.PayosChecksum, ns.DisplayKey = o.PayProvider, o.SepayToken, o.PayosClientID, o.PayosAPIKey, o.PayosChecksum, o.DisplayKey
 			ns.GdtUser = o.GdtUser
 			ns.Loyalty = o.Loyalty
+			ns.Campaigns = o.Campaigns
 			ns.UpdateOff = o.UpdateOff
 			st.Settings = ns
 			t.put("settings", "", st.Settings)

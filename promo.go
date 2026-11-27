@@ -81,6 +81,67 @@ func promoOn(p *Promo, now time.Time) bool {
 	return true
 }
 
+// Chiến dịch giá: một đợt giảm giá có tên, có ngày bắt đầu/kết thúc, gồm nhiều dòng (mỗi dòng giảm cho một nhóm hàng
+// hoặc một mặt hàng, theo % hoặc số tiền). Hết hạn tự về giá thường. Mặt hàng nằm trong nhiều dòng/chiến dịch: lấy mức giảm cao nhất.
+type CampLine struct {
+	Scope  string  `json:"scope"`  // group | product
+	Target string  `json:"target"` // tên nhóm hàng hoặc mã mặt hàng
+	Kind   string  `json:"kind"`   // pct | amt (đồng trên mỗi đơn vị bán)
+	Value  float64 `json:"value"`
+}
+
+type Campaign struct {
+	ID     string     `json:"id"`
+	Name   string     `json:"name"`
+	Active bool       `json:"active"`
+	From   string     `json:"from"` // yyyy-mm-dd
+	To     string     `json:"to"`
+	Lines  []CampLine `json:"lines"`
+}
+
+// allPromos gộp khuyến mãi tự động và các dòng của chiến dịch thành một danh sách chương trình.
+func allPromos(s *State) []Promo {
+	out := append([]Promo(nil), s.Settings.Promos...)
+	for _, c := range s.Settings.Campaigns {
+		for i, l := range c.Lines {
+			out = append(out, Promo{ID: c.ID + "#" + itoa(int64(i)), Name: c.Name, Active: c.Active, Kind: l.Kind, Value: l.Value, Scope: l.Scope, Target: l.Target, From: c.From, To: c.To})
+		}
+	}
+	return out
+}
+
+func (db *DB) SaveCampaigns(list []Campaign) error {
+	return db.Do(func(s *State, t *Tx) error {
+		clean := make([]Campaign, 0, len(list))
+		for _, c := range list {
+			c.Name = strings.TrimSpace(c.Name)
+			if c.Name == "" { return uerr("Nhập tên chiến dịch") }
+			if c.ID == "" { c.ID = newID() }
+			if c.From == "" || c.To == "" { return uerr("Chiến dịch \"%s\" cần ngày bắt đầu và ngày kết thúc", c.Name) }
+			if c.From > c.To { return uerr("Ngày bắt đầu của \"%s\" phải trước ngày kết thúc", c.Name) }
+			if len(c.Lines) == 0 { return uerr("Chiến dịch \"%s\" chưa có dòng giảm giá nào", c.Name) }
+			for i := range c.Lines {
+				l := &c.Lines[i]
+				if l.Scope != "product" { l.Scope = "group" }
+				if l.Target == "" { return uerr("Chọn nhóm hàng hoặc mặt hàng cho mọi dòng của \"%s\"", c.Name) }
+				if l.Scope == "product" && s.Products[l.Target] == nil { return uerr("Mặt hàng trong \"%s\" không còn trong danh mục", c.Name) }
+				if l.Kind != "amt" { l.Kind = "pct" }
+				if l.Value <= 0 { return uerr("Mức giảm trong \"%s\" phải lớn hơn 0", c.Name) }
+				if l.Kind == "pct" && l.Value > 100 { return uerr("Giảm theo %% trong \"%s\" tối đa 100", c.Name) }
+			}
+			clean = append(clean, c)
+		}
+		s.Settings.Campaigns = clean
+		t.put("settings", "", s.Settings)
+		return nil
+	})
+}
+
+type LineDisc struct {
+	Name   string
+	Amount float64
+}
+
 type PromoHit struct {
 	Name   string  `json:"name"`
 	Amount float64 `json:"amount"`
@@ -88,13 +149,22 @@ type PromoHit struct {
 
 // promoDisc tính tổng giảm giá tự động cho các dòng hàng. Mỗi dòng chỉ lấy khuyến mãi có lợi nhất cho khách (không cộng dồn).
 func promoDisc(s *State, lines []Line, custID string, now time.Time) (float64, []PromoHit) {
+	total, hits, _ := promoCalc(s, lines, custID, now)
+	return total, hits
+}
+
+// promoCalc như promoDisc, kèm khuyến mãi áp cho từng dòng (cùng thứ tự với lines).
+// Dòng mà thu ngân đã tự hạ giá dưới giá niêm yết thì không tính khuyến mãi.
+func promoCalc(s *State, lines []Line, custID string, now time.Time) (float64, []PromoHit, []LineDisc) {
 	var act []*Promo
 	needSpend := false
-	for i := range s.Settings.Promos {
-		p := &s.Settings.Promos[i]
+	all := allPromos(s)
+	for i := range all {
+		p := &all[i]
 		if promoOn(p, now) && p.Value > 0 { act = append(act, p); if p.MinTier > 0 { needSpend = true } }
 	}
-	if len(act) == 0 { return 0, nil }
+	per := make([]LineDisc, len(lines))
+	if len(act) == 0 { return 0, nil, per }
 	tier := 0
 	if needSpend && custID != "" {
 		spend := 0.0
@@ -103,10 +173,11 @@ func promoDisc(s *State, lines []Line, custID string, now time.Time) (float64, [
 	}
 	byName := map[string]float64{}
 	total := 0.0
-	for _, l := range lines {
+	for li, l := range lines {
 		amount := l.Qty * l.Price
 		if amount <= 0 { continue }
 		pr := s.Products[l.PID]
+		if pr != nil && l.Price < unitPrice(pr, l.Unit, l.Ratio)-0.5 { continue }
 		best, bestName := 0.0, ""
 		for _, p := range act {
 			if p.MinTier > 0 && tier < p.MinTier { continue }
@@ -120,12 +191,12 @@ func promoDisc(s *State, lines []Line, custID string, now time.Time) (float64, [
 			if d > amount { d = amount }
 			if d > best { best, bestName = d, p.Name }
 		}
-		if best > 0 { total += best; byName[bestName] += best }
+		if best > 0 { total += best; byName[bestName] += best; per[li] = LineDisc{bestName, r0(best)} }
 	}
 	hits := []PromoHit{}
 	for n, a := range byName { hits = append(hits, PromoHit{Name: n, Amount: r0(a)}) }
 	sort.Slice(hits, func(i, j int) bool { return strings.Compare(hits[i].Name, hits[j].Name) < 0 })
-	return r0(total), hits
+	return r0(total), hits, per
 }
 
 // SavePromos thay toàn bộ danh sách khuyến mãi và các mức hạng khách.
@@ -158,4 +229,32 @@ func (db *DB) SavePromos(promos []Promo, tiers []Tier) error {
 		t.put("settings", "", s.Settings)
 		return nil
 	})
+}
+
+type PromoRow struct {
+	Name     string  `json:"name"`
+	Invoices int     `json:"invoices"`
+	Amount   float64 `json:"amount"`
+	Revenue  float64 `json:"revenue"` // doanh thu của các hóa đơn có áp chương trình này
+}
+
+// PromoReport: tổng giảm giá theo từng chương trình / chiến dịch trong khoảng thời gian (không tính hóa đơn đã hủy).
+func (db *DB) PromoReport(from, to string) []PromoRow {
+	rows := map[string]*PromoRow{}
+	db.Read(func(s *State) {
+		for _, inv := range s.Invoices {
+			if inv.Void || !inRange(inv.Time, from, to) { continue }
+			for _, h := range inv.PromoHits {
+				r := rows[h.Name]
+				if r == nil { r = &PromoRow{Name: h.Name}; rows[h.Name] = r }
+				r.Invoices++
+				r.Amount += h.Amount
+				r.Revenue += inv.Total
+			}
+		}
+	})
+	out := make([]PromoRow, 0, len(rows))
+	for _, r := range rows { r.Amount, r.Revenue = r0(r.Amount), r0(r.Revenue); out = append(out, *r) }
+	sort.Slice(out, func(i, j int) bool { return out[i].Amount > out[j].Amount })
+	return out
 }

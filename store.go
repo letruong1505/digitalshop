@@ -90,6 +90,8 @@ type Line struct {
 	Price float64 `json:"price"`
 	Cost  float64 `json:"cost"` // giá vốn cho 1 đơn vị (theo Unit)
 	Exp   string  `json:"exp,omitempty"`
+	PromoName string  `json:"promoName,omitempty"` // chương trình / chiến dịch giá đã áp cho dòng này
+	PromoDisc float64 `json:"promoDisc,omitempty"` // tổng tiền giảm của dòng (đã nằm trong giảm giá hóa đơn)
 }
 
 type Invoice struct {
@@ -111,6 +113,7 @@ type Invoice struct {
 	Note     string  `json:"note"`
 	Promo    float64 `json:"promo,omitempty"`     // phần giảm giá tự động do khuyến mãi (đã nằm trong Disc)
 	PromoNote string `json:"promoNote,omitempty"`
+	PromoHits []PromoHit `json:"promoHits,omitempty"` // giảm giá theo từng chương trình / chiến dịch (dùng cho báo cáo)
 	PtsUsed   int     `json:"ptsUsed,omitempty"`   // điểm khách đã dùng (giảm PtsDisc, nằm trong Disc)
 	PtsDisc   float64 `json:"ptsDisc,omitempty"`
 	PtsEarned int     `json:"ptsEarned,omitempty"` // điểm được cộng từ hóa đơn này
@@ -257,6 +260,7 @@ type Settings struct {
 	UpdateOff      bool    `json:"updateOff"` // tắt tự kiểm tra cập nhật hằng ngày
 	GdtUser        string  `json:"gdtUser"` // tài khoản (MST) đăng nhập hoadondientu.gdt.gov.vn; không lưu mật khẩu
 	Promos         []Promo `json:"promos"`
+	Campaigns      []Campaign `json:"campaigns"`
 	Tiers          []Tier  `json:"tiers"`
 	Loyalty        Loyalty `json:"loyalty"`
 }

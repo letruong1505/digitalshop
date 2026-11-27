@@ -33,7 +33,7 @@ function ptsAllowed(t, payable) {
 let promoTimer = null;
 const promoSig = t => JSON.stringify([t.custId, t.lines.map(l => [l.pid, l.unit, l.ratio, l.qty, l.price])]);
 function promoSync(t) {
-  if (!(S.settings.promos || []).some(p => p.active) || !t.lines.length) { t.promo = null; t.promoSig = ""; return; }
+  if (!((S.settings.promos || []).some(p => p.active) || (S.settings.campaigns || []).some(c => c.active)) || !t.lines.length) { t.promo = null; t.promoSig = ""; return; }
   const sig = promoSig(t);
   if (APP && S.offline) { t.promoSig = sig; t.promo = offPromo(t); return; } // mất mạng: tính khuyến mãi ngay trên máy
   if (t.promoSig === sig) return;
@@ -43,7 +43,7 @@ function promoSync(t) {
       const r = await api("POST", "/api/promo/quote", { lines: t.lines.map(l => ({ pid: l.pid, unit: l.unit, ratio: l.ratio, qty: l.qty, price: l.price })), custId: t.custId });
       if (t.promoSig !== sig) return;
       const old = (t.promo && t.promo.disc) || 0;
-      t.promo = r.disc > 0 ? { disc: r.disc, hits: r.hits || [] } : null;
+      t.promo = r.disc > 0 ? { disc: r.disc, hits: r.hits || [], lines: r.lines || [] } : null;
       if (((t.promo && t.promo.disc) || 0) !== old && curTab() === t) {
         const a = document.activeElement;
         if (!(a && ["posGiven", "posNote", "posDisc", "custQ"].includes(a.id))) renderCart();
@@ -171,12 +171,13 @@ function renderCart() {
     const p = S.products.get(l.pid) || { name: "(đã xóa)", unit: l.unit, units: [] };
     const units = unitOptions(p);
     const sw = units.length > 1 ? `<span class="unit">${units.map(u => `<button data-act="lineUnit" data-i="${i}" data-u="${esc(u.name)}" aria-pressed="${u.name === l.unit}">${esc(u.name)}</button>`).join("")}</span>` : `<span class="ps">${esc(l.unit)}</span>`;
-    const e = expInfo(p);
+    const e = expInfo(p), pl = t.promo && t.promo.lines && t.promo.lines[i];
     return `<div class="line"><div class="ln">${esc(p.name)}${e.level ? `<small style="color:var(--${e.level === "red" ? "red" : "amber"})">HSD gần nhất ${vnDate(e.near) || "—"}${e.expired ? ` · ${fq(e.expired)} ${esc(p.unit)} đã hết hạn` : ""}</small>` : ""}</div>
       <button class="x" data-act="lineRm" data-i="${i}" aria-label="Bỏ">×</button>
       <div class="row" style="gap:6px"><span class="stepper"><button data-act="lineDec" data-i="${i}" aria-label="Bớt">−</button><input id="lq-${i}" data-ch="lineQty" data-i="${i}" inputmode="decimal" value="${fq(l.qty)}" aria-label="Số lượng"><button data-act="lineInc" data-i="${i}" aria-label="Thêm">+</button></span>
         ${sw}<span class="ps">×</span><input id="lp-${i}" class="lp" data-ch="linePrice" data-i="${i}" inputmode="numeric" value="${fmt(l.price)}" aria-label="Đơn giá" ${ep ? "" : "readonly"}></div>
-      <div class="lt">${fmt(l.qty * l.price)}</div></div>`;
+      ${pl && pl.disc > 0 ? `<div class="lpromo"><span class="pill green">KM ${esc(pl.name)}</span> giá gốc <s>${fmt(l.price)}</s> → ${fmt(Math.round((l.qty * l.price - pl.disc) / l.qty))}</div>` : ""}
+      <div class="lt">${pl && pl.disc > 0 ? `<s class="ps">${fmt(l.qty * l.price)}</s> ` : ""}${fmt(l.qty * l.price - (pl && pl.disc > 0 ? pl.disc : 0))}</div></div>`;
   }).join("") + `<div class="field" style="padding:8px 0"><input id="posNote" class="in sm" placeholder="Ghi chú hóa đơn" value="${esc(t.note)}"></div></div>`;
   h += `<div class="pay">
     <div class="sumrow"><span class="muted">Tiền hàng (${T.n} món)</span><span class="num">${money(T.sub)}</span></div>

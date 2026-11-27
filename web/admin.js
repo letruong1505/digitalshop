@@ -388,11 +388,12 @@ ACT.cbNew = b => {
 S.rpPeriod = "today"; S.rpCustom = null; S.rpOpen = null; S.rpTab = "sales";
 VIEWS.report = async function () {
   const [a, b] = periodRange(S.rpPeriod, S.rpCustom);
-  const tabs = [["ov", "Tổng quan", "report"], ["pnl", "Kết quả kinh doanh", "report"], ["close", "Chốt ca cuối ngày", "money"]].filter(x => can(x[2]) && (x[0] !== "pnl" || seeCost()));
+  const tabs = [["ov", "Tổng quan", "report"], ["pnl", "Kết quả kinh doanh", "report"], ["promo", "Theo chiến dịch giá", "report"], ["close", "Chốt ca cuối ngày", "money"]].filter(x => can(x[2]) && (x[0] !== "pnl" || seeCost()));
   if (!tabs.some(x => x[0] === S.rpTab)) S.rpTab = "ov";
   const tabBar = `<div class="seg" role="group" aria-label="Loại báo cáo" style="margin-bottom:12px;width:fit-content">${tabs.map(([k, t]) => `<button type="button" data-act="rpTab" data-v="${k}" aria-pressed="${S.rpTab === k}">${t}</button>`).join("")}</div>`;
   if (S.rpTab === "close") return renderClosing(tabBar);
   if (S.rpTab === "pnl") return renderPnl(tabBar, a, b);
+  if (S.rpTab === "promo") return renderPromoRep(tabBar, a, b);
   $("#main").innerHTML = `<div class="page"><div class="head"><h1>Báo cáo</h1><a class="btn sm" href="/api/export/invoices?from=${a}&to=${b}" download>Xuất hóa đơn ra Excel</a>${S.rpPeriod === "today" || S.rpPeriod === "yday" ? `<button class="btn sm" data-act="eodPrint">${icon("print")} In báo cáo cuối ngày</button>` : ""}</div>
     ${tabs.length > 1 ? tabBar : ""}${periodBarHtml(a, b)}
     <div id="rpBody"><div class="muted">Đang tổng hợp…</div></div></div>`;
@@ -465,6 +466,16 @@ function periodBarHtml(a, b) {
       <input type="date" id="rpFrom" class="in sm" style="width:auto" value="${a}"><span class="ps">đến</span><input type="date" id="rpTo" class="in sm" style="width:auto" value="${b}"></div>`;
 }
 ACT.rpTab = b => { S.rpTab = b.dataset.v; VIEWS.report(); };
+/* ---------- theo chiến dịch giá ---------- */
+async function renderPromoRep(tabBar, a, b) {
+  $("#main").innerHTML = `<div class="page"><div class="head"><h1>Báo cáo</h1></div>${tabBar}${periodBarHtml(a, b)}<div id="rpBody"><div class="muted">Đang tổng hợp…</div></div></div>`;
+  const rows = await api("GET", `/api/promo/report?from=${a}&to=${b}`).catch(e => (toast(e.message, true), null));
+  if (!rows || S.view !== "report" || S.rpTab !== "promo") return;
+  const tot = rows.reduce((t, r) => t + r.amount, 0);
+  $("#rpBody").innerHTML = rows.length ? `<div class="stats"><div class="stat main"><div class="k">Tổng tiền đã giảm</div><div class="v">${money(tot)}</div></div><div class="stat"><div class="k">Số chương trình có bán</div><div class="v">${rows.length}</div></div></div>
+    <div class="section"><h2>Theo chiến dịch giá / khuyến mãi</h2><div class="tbl"><table><thead><tr><th>Chương trình</th><th class="r">Số hóa đơn</th><th class="r">Tiền đã giảm</th><th class="r">Doanh thu các hóa đơn đó</th></tr></thead><tbody>${rows.map(r => `<tr><td class="pn">${esc(r.name)}</td><td class="r num">${fmt(r.invoices)}</td><td class="r num">${money(r.amount)}</td><td class="r num">${money(r.revenue)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="ps">Một hóa đơn có thể áp nhiều chương trình nên doanh thu ở các dòng có thể trùng nhau. Hóa đơn đã hủy không tính.</p></div>` : `<div class="empty"><b>Chưa có hóa đơn nào áp chiến dịch giá hoặc khuyến mãi trong kỳ này</b></div>`;
+}
 /* ---------- kết quả kinh doanh (lãi/lỗ) ---------- */
 async function renderPnl(tabBar, a, b) {
   $("#main").innerHTML = `<div class="page"><div class="head"><h1>Báo cáo</h1></div>${tabBar}${periodBarHtml(a, b)}<div id="rpBody"><div class="muted">Đang tổng hợp…</div></div></div>`;
@@ -1085,7 +1096,7 @@ ACT.ptsAdjGo = async b => {
 function promoRender() {
   const box = $("#promoBox"); if (!box) return;
   const list = S.settings.promos || [], tiers = tiersNow();
-  box.innerHTML = loyaltyCard() + `<div class="section"><div class="row"><h2 class="grow" style="margin:0">Khuyến mãi tự động</h2><button class="btn sm pri" data-act="promoEdit" data-i="-1">+ Khuyến mãi</button></div>
+  box.innerHTML = campaignCard() + loyaltyCard() + `<div class="section"><div class="row"><h2 class="grow" style="margin:0">Khuyến mãi tự động</h2><button class="btn sm pri" data-act="promoEdit" data-i="-1">+ Khuyến mãi</button></div>
     <p class="muted" style="margin:6px 0 10px;max-width:760px">Khuyến mãi tự áp dụng khi bán hàng đúng khung giờ, đúng ngày, đúng hạng khách. Hết giờ tự về giá thường. Mỗi mặt hàng chỉ lấy một khuyến mãi có lợi nhất cho khách (không cộng dồn).</p>
     ${list.length ? `<div class="tbl"><table><thead><tr><th>Chương trình</th><th>Áp dụng cho</th><th>Khi nào</th><th>Khách</th><th></th></tr></thead><tbody>${list.map((p, i) => `<tr class="click" data-act="promoEdit" data-i="${i}"><td class="pn">${esc(p.name)} ${p.active ? '<span class="pill green">đang bật</span>' : '<span class="pill mute">tắt</span>'}</td><td>${esc(promoWhat(p))}</td><td class="ps">${esc(promoWhen(p))}</td><td class="ps">${p.minTier ? "Hạng " + esc((tiers[p.minTier - 1] || {}).name || "") + " trở lên" : "Mọi khách"}</td><td class="r ps">Sửa</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">Chưa có khuyến mãi nào. Ví dụ: giảm 20% đồ uống từ 18h đến 22h, hoặc khách hạng Vàng giảm 5% mọi mặt hàng.</div>`}
     <div class="card stack" style="margin-top:12px"><div class="row"><h3 class="grow" style="margin:0">Hạng khách hàng</h3><button class="btn sm" data-act="tierSave">Lưu hạng</button></div>
@@ -1144,3 +1155,77 @@ ACT.promoDel = async b => {
   const all = (S.settings.promos || []).filter((_, k) => k !== +b.dataset.i);
   if (await promoPost(all, tiersNow(), "Đã xóa khuyến mãi")) closeSheet();
 };
+
+/* ================= CHIẾN DỊCH GIÁ ================= */
+function campState(c) {
+  const d = dkey();
+  if (!c.active) return ["mute", "đang tắt"];
+  if (c.from && d < c.from) return ["amber", "sắp diễn ra"];
+  if (c.to && d > c.to) return ["red", "đã kết thúc"];
+  return ["green", "đang chạy"];
+}
+function campLineText(l) {
+  const t = l.scope === "product" ? ((S.products.get(l.target) || {}).name || "(mặt hàng đã xóa)") : "Nhóm " + l.target;
+  return t + " −" + (l.kind === "amt" ? money(l.value) + "/đv" : l.value + "%");
+}
+function campaignCard() {
+  if (!can("marketing")) return "";
+  const list = S.settings.campaigns || [];
+  return `<div class="section" style="margin-bottom:16px"><div class="row"><h2 class="grow" style="margin:0">Chiến dịch giá</h2><button class="btn sm pri" data-act="campEdit" data-i="-1">+ Tạo chiến dịch</button></div>
+    <p class="muted" style="margin:6px 0 10px;max-width:760px">Một đợt giảm giá có tên, từ ngày đến ngày, gồm nhiều dòng (mỗi dòng giảm cho một nhóm hàng hoặc một mặt hàng, theo % hoặc theo đồng). Bán hàng tự áp dụng, hiện giá gốc gạch ngang và tên chiến dịch, hết hạn tự về giá thường. Mặt hàng nằm ở nhiều dòng thì lấy mức giảm cao nhất.</p>
+    ${list.length ? `<div class="tbl"><table><thead><tr><th>Chiến dịch</th><th>Thời gian</th><th>Nội dung</th><th></th></tr></thead><tbody>${list.map((c, i) => { const st = campState(c); return `<tr class="click" data-act="campEdit" data-i="${i}"><td class="pn">${esc(c.name)} <span class="pill ${st[0]}">${st[1]}</span></td><td class="num">${vnDate(c.from)} → ${vnDate(c.to)}</td><td class="ps">${esc((c.lines || []).slice(0, 4).map(campLineText).join("; "))}${(c.lines || []).length > 4 ? "…" : ""}</td><td class="r"><button class="btn sm" data-act="campToggle" data-i="${i}">${c.active ? "Tắt" : "Bật"}</button></td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">Chưa có chiến dịch nào. Bấm “+ Tạo chiến dịch” để tạo đợt giảm giá đầu tiên.</div>`}</div>`;
+}
+async function campPost(list, okMsg) {
+  const r = await run(() => api("POST", "/api/campaigns", { campaigns: list }), okMsg);
+  if (r) { await refresh(true); promoRender(); }
+  return r;
+}
+ACT.campToggle = (b, e) => { if (e && e.stopPropagation) e.stopPropagation(); const all = JSON.parse(JSON.stringify(S.settings.campaigns || [])); const c = all[+b.dataset.i]; if (!c) return; c.active = !c.active; campPost(all, c.active ? "Đã bật chiến dịch" : "Đã tắt chiến dịch"); };
+function campLineRow(l, i) {
+  const groups = [...new Set([...S.products.values()].map(x => x.group).filter(Boolean))].sort((a, c) => a.localeCompare(c, "vi"));
+  const prodLabel = x => (x.code ? x.code + " · " : "") + x.name;
+  const cur = l.scope === "product" ? S.products.get(l.target) : null;
+  return `<div class="cl-row" style="display:grid;grid-template-columns:120px 1fr 110px 100px 30px;gap:6px;align-items:center;margin-bottom:6px">
+    <select class="in sm cl-scope" data-ch="campScope" data-i="${i}"><option value="group" ${l.scope !== "product" ? "selected" : ""}>Nhóm hàng</option><option value="product" ${l.scope === "product" ? "selected" : ""}>Mặt hàng</option></select>
+    <input class="in sm cl-target" list="cl-list-${i}" autocomplete="off" placeholder="Chọn nhóm hoặc mặt hàng" value="${esc(l.scope === "product" ? (cur ? prodLabel(cur) : "") : l.target || "")}"><datalist id="cl-list-${i}">${(l.scope === "product" ? [...S.products.values()].filter(x => !x.hidden).slice(0, 2000).map(x => prodLabel(x)) : groups).map(g => `<option value="${esc(g)}">`).join("")}</datalist>
+    <select class="in sm cl-kind"><option value="pct" ${l.kind !== "amt" ? "selected" : ""}>Giảm %</option><option value="amt" ${l.kind === "amt" ? "selected" : ""}>Giảm đồng/đv</option></select>
+    <input class="in sm r num cl-val" inputmode="decimal" value="${l.value || ""}" placeholder="Mức giảm">
+    <button type="button" class="x" data-act="campLineRm" data-i="${i}" aria-label="Bỏ dòng">×</button></div>`;
+}
+function campRead() {
+  return [...document.querySelectorAll("#campLines .cl-row")].map(r => {
+    const scope = r.querySelector(".cl-scope").value, tv = r.querySelector(".cl-target").value.trim();
+    let target = tv;
+    if (scope === "product") { const f = [...S.products.values()].find(x => ((x.code ? x.code + " · " : "") + x.name) === tv || x.name === tv); target = f ? f.id : ""; }
+    return { scope, target, kind: r.querySelector(".cl-kind").value, value: parseFloat(String(r.querySelector(".cl-val").value).replace(",", ".")) || 0 };
+  });
+}
+ACT.campEdit = b => {
+  const i = +b.dataset.i, all = S.settings.campaigns || [];
+  S.campF = i >= 0 ? JSON.parse(JSON.stringify(all[i])) : { id: "", name: "", active: true, from: dkey(), to: dkey(), lines: [{ scope: "group", target: "", kind: "pct", value: 10 }] };
+  S.campI = i; campRender();
+};
+function campRender() {
+  const c = S.campF, i = S.campI;
+  openSheet(`<div class="sheet-h"><h2>${i >= 0 ? "Sửa chiến dịch giá" : "Tạo chiến dịch giá"}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div class="grid2"><div class="field full"><label for="cp-name">Tên chiến dịch</label><input id="cp-name" class="in" value="${esc(c.name)}" placeholder="vd Khuyến mãi Tết, Xả hàng cuối tháng"></div>
+      <div class="field"><label for="cp-from">Từ ngày</label><input id="cp-from" class="in" type="date" value="${esc(c.from)}"></div>
+      <div class="field"><label for="cp-to">Đến hết ngày</label><input id="cp-to" class="in" type="date" value="${esc(c.to)}"></div></div>
+    <div class="lbl" style="margin:10px 0 6px">Các dòng giảm giá</div><div id="campLines">${c.lines.map((l, k) => campLineRow(l, k)).join("")}</div>
+    <div><button type="button" class="btn sm" data-act="campLineAdd">+ Thêm dòng</button></div>
+    <label class="check" style="margin-top:10px"><input type="checkbox" id="cp-on" ${c.active ? "checked" : ""}> Đang bật</label>
+    <div class="row" style="margin-top:12px">${i >= 0 ? `<button class="btn danger" data-act="campDel" data-confirm="Bấm lần nữa để xóa chiến dịch">Xóa</button>` : ""}<span class="grow"></span><button class="btn" data-act="close">Hủy</button><button class="btn pri" data-act="campSave">Lưu chiến dịch</button></div>`, { wide: true });
+}
+ACT.campLineAdd = () => { const c = S.campF; const keep = campRead(); c.name = $("#cp-name").value; c.from = $("#cp-from").value; c.to = $("#cp-to").value; c.active = $("#cp-on").checked; c.lines = keep.concat([{ scope: "group", target: "", kind: "pct", value: 10 }]); campRender(); };
+ACT.campLineRm = b => { const c = S.campF; const keep = campRead(); keep.splice(+b.dataset.i, 1); c.name = $("#cp-name").value; c.from = $("#cp-from").value; c.to = $("#cp-to").value; c.active = $("#cp-on").checked; c.lines = keep.length ? keep : [{ scope: "group", target: "", kind: "pct", value: 10 }]; campRender(); };
+ON_CHANGE.campScope = el => { const c = S.campF; const keep = campRead(); keep[+el.dataset.i] = { scope: el.value, target: "", kind: keep[+el.dataset.i].kind, value: keep[+el.dataset.i].value }; c.name = $("#cp-name").value; c.from = $("#cp-from").value; c.to = $("#cp-to").value; c.active = $("#cp-on").checked; c.lines = keep; campRender(); };
+ACT.campSave = async () => {
+  const c = S.campF; c.name = $("#cp-name").value.trim(); c.from = $("#cp-from").value; c.to = $("#cp-to").value; c.active = $("#cp-on").checked;
+  const lines = campRead();
+  if (lines.some(l => !l.target)) return toast("Chọn nhóm hàng hoặc mặt hàng trong danh sách gợi ý cho mọi dòng", true);
+  c.lines = lines;
+  const all = JSON.parse(JSON.stringify(S.settings.campaigns || []));
+  if (S.campI >= 0) all[S.campI] = c; else all.push(c);
+  if (await campPost(all, "Đã lưu chiến dịch")) closeSheet();
+};
+ACT.campDel = async () => { const all = (S.settings.campaigns || []).filter((_, k) => k !== S.campI); if (await campPost(all, "Đã xóa chiến dịch")) closeSheet(); };
