@@ -977,6 +977,7 @@ func (s *Server) routes() {
 		writeJSON(w, ps)
 	}))
 	s.payFeedRoutes(m)
+	s.printRoutes(m)
 	s.apkRoutes(m)
 	m.HandleFunc("POST /api/pay/config", s.auth("admin", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var req struct {

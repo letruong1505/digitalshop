@@ -685,7 +685,8 @@ VIEWS.settings = function () {
       <div class="field"><label for="st-paper">Khổ giấy</label><select id="st-paper" class="in"><option value="80" ${st.paper === "80" ? "selected" : ""}>K80 (máy in nhiệt 80mm)</option><option value="58" ${st.paper === "58" ? "selected" : ""}>K58 (máy in nhiệt 58mm)</option><option value="a5" ${st.paper === "a5" ? "selected" : ""}>A5 (máy in thường)</option></select></div>
       <div class="field"><label for="st-feed">Số dòng trống cuối phiếu (để máy cắt đúng chỗ)</label><input id="st-feed" class="in num" type="number" min="1" max="30" value="${st.printFeed || 8}"></div>
       <div class="field"><label for="st-footer">Lời chào cuối hóa đơn</label><input id="st-footer" class="in" value="${esc(st.footer || "")}"></div>
-      <label class="check full"><input type="checkbox" id="st-auto" ${st.autoPrint ? "checked" : ""}> Tự in hóa đơn sau mỗi lần thanh toán</label></div>
+      <label class="check full"><input type="checkbox" id="st-auto" ${st.autoPrint ? "checked" : ""}> Tự in hóa đơn sau mỗi lần thanh toán</label>
+      <label class="check full"><input type="checkbox" id="st-rprint" ${st.noRemotePrint ? "" : "checked"}> Cho phép điện thoại (app Android) in qua máy tính này. Đặt máy in phiếu làm máy in mặc định của Windows, phiếu sẽ in thẳng không hỏi.</label></div>
       <div><button type="button" class="btn sm" data-act="testPrint">${icon("print")} In thử</button> <span class="ps">Lần đầu in, chọn đúng máy in nhiệt, lề “Không”, tắt “Đầu trang và chân trang”.</span></div></div>
     <div class="card stack"><h2>Bán hàng & kho</h2><div class="grid3">
       <div class="field"><label for="st-warn">Báo cận date trước (ngày)</label><input id="st-warn" class="in num" type="number" min="1" value="${st.expWarn || 30}"></div>
@@ -780,7 +781,7 @@ async function saveSettings(e) {
   const v = id => $(id).value, c = id => $(id).checked;
   const bin = v("#st-bank"), key = v("#st-key").trim(), del = $("#st-delkey") && c("#st-delkey");
   const body = { shopName: v("#st-name"), phone: v("#st-phone"), addr: v("#st-addr"), bankBin: bin, bankName: (BANKS.find(b => b[0] === bin) || [])[1] || "", acct: v("#st-acct").replace(/\s/g, ""), holder: v("#st-holder").toUpperCase(),
-    paper: v("#st-paper"), footer: v("#st-footer"), printFeed: Math.min(30, Math.max(1, +v("#st-feed") || 8)), autoPrint: c("#st-auto"), expWarn: +v("#st-warn") || 30, expDanger: +v("#st-danger") || 7, minMargin: +v("#st-margin") || 0,
+    paper: v("#st-paper"), footer: v("#st-footer"), printFeed: Math.min(30, Math.max(1, +v("#st-feed") || 8)), autoPrint: c("#st-auto"), noRemotePrint: !c("#st-rprint"), expWarn: +v("#st-warn") || 30, expDanger: +v("#st-danger") || 7, minMargin: +v("#st-margin") || 0,
     blockExpired: c("#st-block"), sellNegative: c("#st-neg"), staffEditPrice: c("#st-sprice"), staffSeeCost: c("#st-scost"), apiKey: del ? "" : key, keepKey: !del && !key };
   if (await run(() => api("POST", "/api/settings", body), "Đã lưu cài đặt")) await refresh(true);
 }

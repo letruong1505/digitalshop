@@ -220,6 +220,7 @@ type Settings struct {
 	Holder         string  `json:"holder"`
 	Paper          string  `json:"paper"`
 	AutoPrint      bool    `json:"autoPrint"`
+	NoRemotePrint  bool    `json:"noRemotePrint"` // tắt nhận lệnh in từ điện thoại/thiết bị khác
 	PrintFeed      int     `json:"printFeed"` // số dòng trống cuối phiếu in nhiệt (1–30)
 	Footer         string  `json:"footer"`
 	ExpWarn        int     `json:"expWarn"`

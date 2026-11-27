@@ -443,9 +443,17 @@ function printHtml(html) {
   const P = $("#print"), paper = (S.settings && S.settings.paper) || "80";
   const thermal = paper === "58" || paper === "80";
   const feed = Math.min(30, Math.max(1, +(S.settings && S.settings.printFeed) || 8));
-  P.innerHTML = html + (thermal ? `<div style="height:${feed * 1.35}em"></div>` : "");
+  const full = html + (thermal ? `<div style="height:${feed * 1.35}em"></div>` : "");
+  // App Android không có máy in: gửi phiếu về máy tính chạy Digital Shop để máy tính in
+  if (APP) return remotePrint(full, paper);
+  P.innerHTML = full;
   fitPage(P, thermal ? (paper === "58" ? 58 : 80) : 0);
   setTimeout(() => { window.print(); }, 80);
+}
+async function remotePrint(html, paper) {
+  if (S.offline) return toast("Đang mất kết nối với máy tính, chưa in được. Phiếu vẫn được lưu, in lại sau khi có mạng.", true);
+  try { await api("POST", "/api/print", { html, paper }); toast("Đã gửi lệnh in tới máy tính"); }
+  catch (e) { toast(e.message || "Không gửi được lệnh in", true); }
 }
 /* Đặt khổ trang đúng bằng chiều cao phiếu để máy in nhiệt không nhả thêm giấy trắng và cắt đúng chỗ. */
 function fitPage(P, widthMm) {
