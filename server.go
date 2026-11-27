@@ -351,6 +351,14 @@ func (s *Server) routes() {
 						items = append(items, map[string]any{"type": "return", "id": rt.ID, "code": rt.Code, "time": rt.Time, "total": rt.Total, "debtEffect": eff, "void": rt.Void, "lines": rt.Lines, "applyDebt": rt.ApplyDebt, "refund": rt.Refund, "refundMethod": rt.RefundMethod, "restock": rt.Restock, "note": rt.Note, "staff": rt.Staff, "debtAfter": rt.DebtAfter})
 					}
 				}
+				if kind == "supp" {
+					for _, rt := range st.SuppReturns {
+						if rt.SuppID != id { continue }
+						eff := -rt.ApplyDebt
+						if rt.RefundMethod == "credit" { eff -= rt.Refund }
+						items = append(items, map[string]any{"type": "sreturn", "id": rt.ID, "code": rt.Code, "time": rt.Time, "total": rt.Total, "debtEffect": eff, "void": rt.Void, "lines": rt.Lines, "applyDebt": rt.ApplyDebt, "refund": rt.Refund, "refundMethod": rt.RefundMethod, "note": rt.Note, "staff": rt.Staff, "debtAfter": rt.DebtAfter})
+					}
+				}
 				if kind == "cust" {
 					for _, e := range st.PtsLog {
 						if e.CustID != id { continue }
@@ -385,6 +393,26 @@ func (s *Server) routes() {
 	}))
 	m.HandleFunc("POST /api/returns/{id}/void", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
 		if err := s.db.VoidReturn(r.PathValue("id")); err != nil { failErr(w, err); return }
+		writeJSON(w, map[string]bool{"ok": true})
+	}))
+
+	// ---- trả hàng nhà cung cấp ----
+	m.HandleFunc("GET /api/suppliers/{id}/returnable", s.auth("stock|money", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var out []*SuppReturnInfo
+		s.db.Read(func(st *State) { out = suppReturnableList(st, r.PathValue("id")) })
+		if out == nil { out = []*SuppReturnInfo{} }
+		writeJSON(w, out)
+	}))
+	m.HandleFunc("POST /api/suppliers/{id}/return", s.auth("stock", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var req SuppReturnReq
+		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
+		req.SuppID = r.PathValue("id")
+		out, err := s.db.CreateSuppReturn(req, u)
+		if err != nil { failErr(w, err); return }
+		writeJSON(w, out)
+	}))
+	m.HandleFunc("POST /api/sreturns/{id}/void", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
+		if err := s.db.VoidSuppReturn(r.PathValue("id")); err != nil { failErr(w, err); return }
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
 
@@ -705,6 +733,30 @@ func (s *Server) routes() {
 		owner := u.can("cost")
 		s.db.Read(func(st *State) { if st.Settings.StaffSeeCost { owner = true } })
 		writeJSON(w, s.db.Report(from, to, owner))
+	}))
+	m.HandleFunc("GET /api/pnl", s.auth("report", func(w http.ResponseWriter, r *http.Request, u *User) {
+		ok := u.can("cost")
+		s.db.Read(func(st *State) { if st.Settings.StaffSeeCost { ok = true } })
+		if !ok { failErr(w, uerr("Bạn không có quyền xem lợi nhuận")); return }
+		from, to := dates(r)
+		writeJSON(w, s.db.PnL(from, to))
+	}))
+	m.HandleFunc("GET /api/closing", s.auth("money", func(w http.ResponseWriter, r *http.Request, u *User) {
+		d := r.URL.Query().Get("date")
+		if d == "" { d = dayOf(nowMs()) }
+		writeJSON(w, map[string]any{"preview": s.db.ClosePreview(d), "list": s.db.Closings(60)})
+	}))
+	m.HandleFunc("POST /api/closing", s.auth("money", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var req struct {
+			Date    string  `json:"date"`
+			Counted float64 `json:"counted"`
+			Kept    float64 `json:"kept"`
+			Note    string  `json:"note"`
+		}
+		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
+		c, err := s.db.CreateClosing(req.Date, req.Counted, req.Kept, req.Note, u)
+		if err != nil { failErr(w, err); return }
+		writeJSON(w, c)
 	}))
 	m.HandleFunc("GET /api/combos", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
 		days := 90

@@ -179,6 +179,7 @@ func (db *DB) Report(from, to string, owner bool) *Report {
 			r.Flow["buyTotal"] += rc.Total
 			if rc.Method == "bank" { r.Flow["buyBank"] += rc.Paid } else { r.Flow["buyCash"] += rc.Paid }
 		}
+		for _, sr := range s.SuppReturns { if !sr.Void && inRange(sr.Time, from, to) { r.Flow["buyReturn"] += sr.Total } }
 		for _, e := range s.Cash {
 			if e.Void || e.Kind == "adj" || !inRange(e.Time, from, to) { continue }
 			k := e.Kind + "_" + e.Method

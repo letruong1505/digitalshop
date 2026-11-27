@@ -61,6 +61,7 @@ async function partyDetail(kind, id) {
       ${isOwner() ? `<details><summary class="ps" style="cursor:pointer">Điều chỉnh công nợ (không qua tiền)</summary><div class="row" style="margin-top:8px"><input id="pdAdj" class="in num" style="width:150px" inputmode="numeric" placeholder="+ hoặc − số tiền"><input id="pdAdjNote" class="in grow" placeholder="Lý do, vd ghi nợ cũ, xóa nợ"><button class="btn" data-act="pdAdj" data-k="${kind}" data-id="${esc(id)}">Điều chỉnh</button></div></details>` : ""}
     </div>
     <div class="row">${isC && p.debt > 0 ? `<button class="btn sm" data-act="remind" data-id="${esc(id)}">Sao chép tin nhắn nhắc nợ</button>${st.acct ? `<button class="btn sm" data-act="debtQR" data-id="${esc(id)}">Mã QR trả nợ</button>` : ""}` : ""}
+      ${!isC && can("stock") ? `<button class="btn sm" data-act="suppReturn" data-id="${esc(id)}">Trả hàng nhà cung cấp</button>` : ""}
       <button class="btn sm" data-act="pdEdit" data-k="${kind}" data-id="${esc(id)}">Sửa thông tin</button><span class="grow"></span>
       ${isOwner() && !p.debt ? `<button class="btn sm danger" data-act="pdDel" data-k="${kind}" data-id="${esc(id)}" data-confirm="Bấm lần nữa để xóa">Xóa</button>` : ""}</div>
     <div><div class="lbl" style="margin-bottom:6px">Lịch sử</div><div id="pdHist"><div class="muted">Đang tải…</div></div></div>`);
@@ -70,10 +71,11 @@ async function partyDetail(kind, id) {
     if (x.type === "invoice") { what = `Hóa đơn ${esc(x.code)} · ${money(x.total)}<div class="ps">${esc(x.lines.map(l => l.name + " ×" + fq(l.qty)).join(", ")).slice(0, 120)}</div>`; eff = x.debt; }
     else if (x.type === "return") { what = `Khách trả hàng ${esc(x.code)} · ${money(x.total)}${x.refund > 0 ? " · " + ({ cash: "hoàn tiền mặt", bank: "hoàn chuyển khoản", credit: "giữ làm số dư" }[x.refundMethod] || "") + " " + money(x.refund) : ""}${x.restock ? "" : " · không nhập kho"}<div class="ps">${esc(x.lines.map(l => l.name + " ×" + fq(l.qty)).join(", ")).slice(0, 120)}</div>`; eff = x.debtEffect; }
     else if (x.type === "pts") { what = `Điều chỉnh điểm ${x.delta > 0 ? "+" : ""}${fmt(x.delta)} · còn ${fmt(x.bal)}${x.note ? " · " + esc(x.note) : ""}<div class="ps">${esc(x.staff || "")}</div>`; eff = 0; }
+    else if (x.type === "sreturn") { what = `Trả hàng NCC ${esc(x.code)} · ${money(x.total)}${x.refund > 0 ? " · " + ({ cash: "NCC hoàn tiền mặt", bank: "NCC hoàn chuyển khoản", credit: "giữ làm số dư" }[x.refundMethod] || "") + " " + money(x.refund) : ""}<div class="ps">${esc(x.lines.map(l => l.name + " ×" + fq(l.qty)).join(", ")).slice(0, 120)}</div>`; eff = x.debtEffect; }
     else if (x.type === "receipt") { what = `Phiếu nhập ${esc(x.code)} · ${money(x.total)}`; eff = x.debt; }
     else { what = `${esc(x.cat || (x.kind === "thu" ? "Phiếu thu" : x.kind === "chi" ? "Phiếu chi" : "Điều chỉnh"))} ${esc(x.code)}${x.method === "bank" && x.kind !== "adj" ? " · chuyển khoản" : ""}${x.note ? `<div class="ps">${esc(x.note)}</div>` : ""}`; eff = x.debtEffect; }
     return `<tr class="${x.void ? "void" : ""}"><td class="num ps" style="white-space:nowrap">${dt(x.time)}</td><td>${what}</td><td class="r num" style="color:${eff > 0 ? "var(--red)" : eff < 0 ? "var(--green-text)" : "inherit"}"><b>${eff ? (eff > 0 ? "+" : "") + fmt(eff) : ""}</b></td>
-      <td class="r">${x.type === "return" && !x.void && can("manage") ? `<button class="btn sm ghost" data-act="retVoid" data-id="${esc(x.id)}" data-back="cust:${esc(id)}" data-confirm="Hủy phiếu trả hàng? Nợ và kho trở lại như trước">Hủy</button>` : ""}${x.type === "cash" && !x.void && isOwner() ? `<button class="btn sm ghost" data-act="cashVoid" data-id="${esc(x.id)}" data-back="${kind}:${esc(id)}" data-confirm="Hủy phiếu?">Hủy</button>` : ""}</td></tr>`;
+      <td class="r">${x.type === "sreturn" && !x.void && can("manage") ? `<button class="btn sm ghost" data-act="sretVoid" data-id="${esc(x.id)}" data-back="supp:${esc(id)}" data-confirm="Hủy phiếu trả hàng NCC? Nợ và kho trở lại như trước">Hủy</button>` : ""}${x.type === "return" && !x.void && can("manage") ? `<button class="btn sm ghost" data-act="retVoid" data-id="${esc(x.id)}" data-back="cust:${esc(id)}" data-confirm="Hủy phiếu trả hàng? Nợ và kho trở lại như trước">Hủy</button>` : ""}${x.type === "cash" && !x.void && isOwner() ? `<button class="btn sm ghost" data-act="cashVoid" data-id="${esc(x.id)}" data-back="${kind}:${esc(id)}" data-confirm="Hủy phiếu?">Hủy</button>` : ""}</td></tr>`;
   }).join("")}</tbody></table></div>` : `<div class="ps">Chưa có giao dịch.</div>`;
 }
 
@@ -223,6 +225,87 @@ ACT.retVoid = async b => {
   if (!r) return; await refresh(true);
   const [k, id] = b.dataset.back.split(":"); partyDetail(k, id);
 };
+/* ---------- trả hàng nhà cung cấp ---------- */
+let SR = null;
+ACT.suppReturn = async b => {
+  const id = b.dataset.id;
+  SR = { id, items: null, toDebt: true, refundMethod: "cash" };
+  const items = await run(() => api("GET", `/api/suppliers/${id}/returnable`)); if (!items) return;
+  SR.items = items.filter(x => x.left > 0).map(x => ({ ...x, qty: 0, priceIn: x.price }));
+  srRender();
+};
+function srTotals() {
+  const s = S.suppliers.get(SR.id);
+  const total = SR.items.reduce((t, x) => t + (x.qty > 0 ? x.qty * x.priceIn : 0), 0);
+  const apply = SR.toDebt && s.debt > 0 ? Math.min(total, s.debt) : 0, refund = total - apply;
+  const bad = SR.items.some(x => x.qty > x.left + 0.0005 || (x.qty > 0 && x.priceIn > x.maxPrice));
+  return { s, total: Math.round(total), apply: Math.round(apply), refund: Math.round(refund), bad };
+}
+function srSumHtml() {
+  const { s, total, apply, refund, bad } = srTotals(), credit = SR.refundMethod === "credit";
+  const after = s.debt - apply - (credit ? refund : 0);
+  return `<div class="row" style="justify-content:space-between"><span>Giá trị hàng trả NCC</span><b class="num">${money(total)}</b></div>
+    ${s.debt > 0 ? `<div class="row" style="justify-content:space-between"><span>Trừ vào nợ phải trả</span><b class="num" style="color:var(--green-text)">− ${money(apply)}</b></div>` : ""}
+    ${refund > 0 ? `<div class="row" style="justify-content:space-between"><span>${credit ? "Giữ làm số dư (trừ vào lần nhập sau)" : "NCC hoàn lại cho mình"}</span><b class="num">${money(refund)}</b></div>` : ""}
+    <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:6px"><span><b>Nợ NCC sau khi trả hàng</b></span><b class="num" style="font-size:18px;color:${after > 0 ? "var(--red)" : "var(--green-text)"}">${after < 0 ? "NCC nợ lại " + money(-after) : money(after)}</b></div>
+    ${bad ? `<div class="ps" style="color:var(--red)">Số lượng vượt mức trả được hoặc giá cao hơn giá đã nhập, kiểm tra các dòng bị đỏ.</div>` : ""}`;
+}
+function srRefundHtml() {
+  const { refund } = srTotals();
+  return refund > 0 ? `<div class="field"><label for="srMethod">Phần dư ${money(refund)}: xử lý thế nào?</label><select id="srMethod" class="in" data-ch="srMethod"><option value="cash" ${SR.refundMethod === "cash" ? "selected" : ""}>NCC hoàn tiền mặt</option><option value="bank" ${SR.refundMethod === "bank" ? "selected" : ""}>NCC hoàn chuyển khoản</option><option value="credit" ${SR.refundMethod === "credit" ? "selected" : ""}>Giữ làm số dư, trừ vào lần nhập sau</option></select></div>` : "";
+}
+function srRender() {
+  const s = S.suppliers.get(SR.id);
+  openSheet(`<div class="sheet-h"><h2>Trả hàng nhà cung cấp · ${esc(s.name)}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div class="sumrow"><div><div class="lbl">${s.debt < 0 ? "NCC đang nợ mình" : "Mình đang nợ"}</div><div class="due" style="color:${s.debt > 0 ? "var(--red)" : "var(--green-text)"}">${money(Math.abs(s.debt))}</div></div></div>
+    ${SR.items.length ? `<div class="stack"><div class="ps">Chọn hàng trả lại (chỉ hàng đã nhập từ NCC này và còn tồn kho). Giá mặc định là giá nhập bình quân.</div>
+      <div class="tbl"><table><thead><tr><th>Mặt hàng</th><th class="r">Trả được</th><th class="r" style="width:96px">Số lượng trả</th><th class="r" style="width:110px">Giá / đơn vị</th></tr></thead><tbody>${SR.items.map((x, i) => `<tr id="srRow${i}"><td class="pn">${esc(x.name)}</td><td class="r ps">${fq(x.left)} ${esc(x.unit)}</td><td class="r"><input class="in num" style="width:84px;text-align:right" inputmode="decimal" data-in="srQty" data-i="${i}" placeholder="0"></td><td class="r"><input class="in num" style="width:100px;text-align:right" inputmode="numeric" data-in="srPrice" data-i="${i}" value="${fmt(x.priceIn)}"></td></tr>`).join("")}</tbody></table></div>
+      ${s.debt > 0 ? `<label class="check"><input type="checkbox" data-ch="srToDebt" ${SR.toDebt ? "checked" : ""}> <span>Trừ giá trị hàng trả vào nợ phải trả NCC</span></label>` : ""}
+      <div class="card" id="srSum" style="padding:12px;display:grid;gap:4px">${srSumHtml()}</div>
+      <div id="srRef">${srRefundHtml()}</div>
+      <div class="field"><label for="srNote">Ghi chú (không bắt buộc)</label><input id="srNote" class="in" placeholder="vd hàng lỗi, hết hạn, giao nhầm"></div>
+      <div class="row"><span class="grow"></span><button type="button" class="btn" data-act="close">Hủy</button><button type="button" class="btn pri" id="srSave" data-act="srSave" disabled>Ghi nhận trả hàng</button></div></div>`
+      : `<div class="empty" style="margin:12px 0">Chưa có hàng nào trả được (chưa nhập hàng từ NCC này qua phiếu nhập, hoặc đã trả hết, hoặc kho đã hết).</div><div class="row"><span class="grow"></span><button class="btn" data-act="close">Đóng</button></div>`}`);
+}
+function srRefresh() {
+  const t = srTotals();
+  $("#srSum").innerHTML = srSumHtml(); $("#srRef").innerHTML = srRefundHtml();
+  $("#srSave").disabled = !(t.total > 0) || t.bad;
+  SR.items.forEach((x, i) => { const r = $("#srRow" + i); if (r) r.style.background = x.qty > x.left + 0.0005 || (x.qty > 0 && x.priceIn > x.maxPrice) ? "var(--red-bg, #fdecea)" : ""; });
+}
+ON_INPUT.srQty = el => { SR.items[+el.dataset.i].qty = Math.max(0, parseFloat(String(el.value).replace(",", ".")) || 0); srRefresh(); };
+ON_INPUT.srPrice = el => { SR.items[+el.dataset.i].priceIn = parseMoney(el.value); srRefresh(); };
+ON_CHANGE.srToDebt = el => { SR.toDebt = el.checked; srRefresh(); };
+ON_CHANGE.srMethod = el => { SR.refundMethod = el.value; srRefresh(); };
+ACT.srSave = async b => {
+  const t = srTotals(); if (!(t.total > 0) || t.bad) return;
+  const lines = SR.items.filter(x => x.qty > 0).map(x => ({ pid: x.pid, qty: x.qty, price: x.priceIn }));
+  b.disabled = true;
+  const r = await run(() => api("POST", `/api/suppliers/${SR.id}/return`, { lines, toDebt: SR.toDebt, refundMethod: SR.refundMethod, note: ($("#srNote") || {}).value || "" }));
+  if (!r) { b.disabled = false; return; }
+  await refresh(true);
+  SR.done = r;
+  const method = { cash: "NCC hoàn tiền mặt", bank: "NCC hoàn chuyển khoản", credit: "Giữ làm số dư" }[r.refundMethod] || "";
+  openSheet(`<div class="sheet-h"><h2>Đã trả hàng cho NCC</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div style="display:grid;gap:6px;text-align:center;padding:8px 0"><div style="font-size:42px;color:var(--green-text)">✓</div><b style="font-size:22px">${money(r.total)}</b><div class="ps">${esc(r.suppName)} · phiếu ${esc(r.code)} · đã trừ kho</div>
+      ${r.applyDebt > 0 ? `<div>Trừ vào nợ <b>${money(r.applyDebt)}</b></div>` : ""}${r.refund > 0 ? `<div>${method} <b>${money(r.refund)}</b></div>` : ""}
+      <div>Nợ NCC sau khi trả hàng: <b style="color:${r.debtAfter > 0 ? "var(--red)" : "var(--green-text)"}">${r.debtAfter < 0 ? "NCC nợ lại " + money(-r.debtAfter) : money(r.debtAfter)}</b></div></div>
+    <div class="row"><span class="grow"></span><button class="btn" data-act="srPrint">${icon("print")} In phiếu</button><button class="btn pri" data-act="close">Xong</button></div>`);
+};
+ACT.srPrint = () => { if (SR && SR.done) printHtml(suppReturnReceiptHtml(SR.done)); };
+function suppReturnReceiptHtml(r) {
+  const st = S.settings, row = (k, v, bold) => `<tr><td>${k}</td><td class="r">${bold ? "<b>" : ""}${v}${bold ? "</b>" : ""}</td></tr>`;
+  return `<div class="rc ${st.paper === "58" ? "p58" : st.paper === "a5" ? "a5" : ""}"><div class="c shop">${esc(st.shopName || "")}</div>${st.addr ? `<div class="c">${esc(st.addr)}</div>` : ""}${st.phone ? `<div class="c">ĐT ${esc(st.phone)}</div>` : ""}<hr>
+    <div class="c big">PHIẾU TRẢ HÀNG NHÀ CUNG CẤP</div><div class="c">${esc(r.code)} · ${dt(r.time)}</div><hr><div>Nhà cung cấp: <b>${esc(r.suppName)}</b></div>
+    <table>${r.lines.map(l => `<tr><td>${esc(l.name)}<br>${fq(l.qty)} ${esc(l.unit)} × ${fmt(l.price)}</td><td class="r">${fmt(l.qty * l.price)}</td></tr>`).join("")}</table><hr>
+    <table>${row("Giá trị hàng trả", money(r.total), true)}${r.applyDebt > 0 ? row("Trừ vào nợ phải trả", money(r.applyDebt)) : ""}${r.refund > 0 ? row(r.refundMethod === "credit" ? "Giữ làm số dư" : r.refundMethod === "bank" ? "NCC hoàn chuyển khoản" : "NCC hoàn tiền mặt", money(r.refund)) : ""}${row("Nợ NCC còn lại", r.debtAfter < 0 ? "-" + money(-r.debtAfter) : money(r.debtAfter), true)}</table>
+    ${r.note ? `<div>Ghi chú: ${esc(r.note)}</div>` : ""}<div>Người lập: ${esc(r.staff || "")}</div><hr><div class="c">Ký nhận: ______________</div></div>`;
+}
+ACT.sretVoid = async b => {
+  const r = await run(() => api("POST", `/api/sreturns/${b.dataset.id}/void`), "Đã hủy phiếu trả hàng NCC");
+  if (!r) return; await refresh(true);
+  const [k, id] = b.dataset.back.split(":"); partyDetail(k, id);
+};
 ACT.pdAll = b => { $("#pdAmt").value = fmt(+b.dataset.v); };
 ACT.pdPay = async b => {
   const k = b.dataset.k, id = b.dataset.id, a = parseMoney($("#pdAmt").value);
@@ -305,9 +388,13 @@ ACT.cbNew = b => {
 S.rpPeriod = "today"; S.rpCustom = null; S.rpOpen = null; S.rpTab = "sales";
 VIEWS.report = async function () {
   const [a, b] = periodRange(S.rpPeriod, S.rpCustom);
+  const tabs = [["ov", "Tổng quan", "report"], ["pnl", "Kết quả kinh doanh", "report"], ["close", "Chốt ca cuối ngày", "money"]].filter(x => can(x[2]) && (x[0] !== "pnl" || seeCost()));
+  if (!tabs.some(x => x[0] === S.rpTab)) S.rpTab = "ov";
+  const tabBar = `<div class="seg" role="group" aria-label="Loại báo cáo" style="margin-bottom:12px;width:fit-content">${tabs.map(([k, t]) => `<button type="button" data-act="rpTab" data-v="${k}" aria-pressed="${S.rpTab === k}">${t}</button>`).join("")}</div>`;
+  if (S.rpTab === "close") return renderClosing(tabBar);
+  if (S.rpTab === "pnl") return renderPnl(tabBar, a, b);
   $("#main").innerHTML = `<div class="page"><div class="head"><h1>Báo cáo</h1><a class="btn sm" href="/api/export/invoices?from=${a}&to=${b}" download>Xuất hóa đơn ra Excel</a>${S.rpPeriod === "today" || S.rpPeriod === "yday" ? `<button class="btn sm" data-act="eodPrint">${icon("print")} In báo cáo cuối ngày</button>` : ""}</div>
-    <div class="row" style="margin-bottom:12px"><div class="chips grow" style="flex-wrap:wrap;overflow:visible">${periodChips(S.rpPeriod, "rpPeriod")}</div>
-      <input type="date" id="rpFrom" class="in sm" style="width:auto" value="${a}"><span class="ps">đến</span><input type="date" id="rpTo" class="in sm" style="width:auto" value="${b}"></div>
+    ${tabs.length > 1 ? tabBar : ""}${periodBarHtml(a, b)}
     <div id="rpBody"><div class="muted">Đang tổng hợp…</div></div></div>`;
   const [rp, invs] = await Promise.all([api("GET", `/api/report?from=${a}&to=${b}`).catch(e => (toast(e.message, true), null)), api("GET", `/api/invoices?from=${a}&to=${b}`).catch(() => [])]);
   if (!rp || S.view !== "report") return;
@@ -373,6 +460,79 @@ function custRankHtml(rp, owner) {
     ${all.length > 20 ? `<div class="row" style="margin-top:8px"><button class="btn sm" data-act="rpCustAll">${S.rpCustAll ? "Chỉ hiện 20 khách đầu" : "Hiện tất cả " + all.length + " khách"}</button></div>` : ""}
     ${owner ? `<p class="ps" style="margin:8px 0 0">Lợi nhuận = tiền khách trả (sau giảm giá) trừ giá vốn hàng đã bán. Biên đỏ là dưới 8%: bán nhiều nhưng lãi mỏng.</p>` : ""}</div>`;
 }
+function periodBarHtml(a, b) {
+  return `<div class="row" style="margin-bottom:12px"><div class="chips grow" style="flex-wrap:wrap;overflow:visible">${periodChips(S.rpPeriod, "rpPeriod")}</div>
+      <input type="date" id="rpFrom" class="in sm" style="width:auto" value="${a}"><span class="ps">đến</span><input type="date" id="rpTo" class="in sm" style="width:auto" value="${b}"></div>`;
+}
+ACT.rpTab = b => { S.rpTab = b.dataset.v; VIEWS.report(); };
+/* ---------- kết quả kinh doanh (lãi/lỗ) ---------- */
+async function renderPnl(tabBar, a, b) {
+  $("#main").innerHTML = `<div class="page"><div class="head"><h1>Báo cáo</h1></div>${tabBar}${periodBarHtml(a, b)}<div id="rpBody"><div class="muted">Đang tổng hợp…</div></div></div>`;
+  const p = await api("GET", `/api/pnl?from=${a}&to=${b}`).catch(e => (toast(e.message, true), null));
+  if (!p || S.view !== "report" || S.rpTab !== "pnl") return;
+  const line = (k, v, o = {}) => `<tr${o.bold ? ' style="font-weight:700;border-top:1px solid var(--line)"' : ""}><td${o.ind ? ' style="padding-left:22px"' : ""}>${k}</td><td class="r num" style="${o.color ? "color:" + o.color : ""}">${o.neg ? "− " : ""}${money(Math.abs(v))}</td></tr>`;
+  const col = v => v >= 0 ? "var(--green-text)" : "var(--red)";
+  $("#rpBody").innerHTML = `<div class="stats"><div class="stat main"><div class="k">Doanh thu thuần</div><div class="v">${money(p.revenue)}</div></div>
+      <div class="stat good"><div class="k">Lãi gộp</div><div class="v">${money(p.gross)}</div></div>
+      <div class="stat"><div class="k">Tổng chi phí</div><div class="v">${money(p.expenseT)}</div></div>
+      <div class="stat ${p.net >= 0 ? "good" : "bad"}"><div class="k">Lợi nhuận ròng</div><div class="v">${p.net < 0 ? "− " : ""}${money(Math.abs(p.net))}</div></div></div>
+    <div class="grid2" style="margin-top:14px;align-items:start"><div class="section"><h2>Báo cáo lãi lỗ</h2><div class="tbl"><table><tbody>
+      ${line("Doanh thu bán hàng", p.revenue + p.returns)}${p.returns ? line("Khách trả hàng", p.returns, { neg: true, ind: true }) : ""}${line("Doanh thu thuần", p.revenue, { bold: true })}
+      ${line("Giá vốn hàng bán", p.cogs, { neg: true })}${line("LÃI GỘP", p.gross, { bold: true, color: col(p.gross) })}
+      ${p.loss ? line("Hàng hủy, hết hạn, hao hụt kho", p.loss, { neg: true }) : ""}${p.diff ? line(p.diff > 0 ? "Tiền két thừa khi chốt ca" : "Tiền két thiếu khi chốt ca", p.diff, { neg: p.diff < 0 }) : ""}
+      ${p.otherIn.map(x => line(esc(x.cat), x.amount, { ind: true })).join("")}${p.otherInT ? line("Thu nhập khác", p.otherInT, { bold: true }) : ""}
+      ${p.expenses.map(x => line(esc(x.cat), x.amount, { neg: true, ind: true })).join("")}${p.expenseT ? line("Tổng chi phí", p.expenseT, { neg: true, bold: true }) : `<tr><td class="ps" colspan="2">Chưa có khoản chi nào trong sổ quỹ. Ghi tiền điện, thuê mặt bằng, lương… ở mục Sổ quỹ để tính lãi ròng đúng.</td></tr>`}
+      ${line("LỢI NHUẬN RÒNG", p.net, { bold: true, color: col(p.net) })}</tbody></table></div>
+      <p class="ps" style="margin-top:8px">Không tính vào lãi lỗ: tiền nhập hàng (hàng chưa bán nằm trong kho), thu nợ khách, trả nợ NCC, hoàn tiền trả hàng${p.draw ? `, chủ rút tiền chi tiêu ${money(p.draw)}` : ""}${p.capital ? `, góp vốn ${money(p.capital)}` : ""}.</p></div>
+      <div class="section"><h2>Theo tháng</h2>${p.months.length ? `<div class="tbl"><table><thead><tr><th>Tháng</th><th class="r">Doanh thu</th><th class="r">Lãi gộp</th><th class="r">Lãi ròng</th></tr></thead><tbody>${p.months.map(m => `<tr><td>${esc(m.month.slice(5) + "/" + m.month.slice(0, 4))}</td><td class="r num">${fmt(m.rev)}</td><td class="r num">${fmt(m.gross)}</td><td class="r num" style="color:${col(m.net)}"><b>${fmt(m.net)}</b></td></tr>`).join("")}</tbody></table></div><div class="ps" style="margin-top:6px">Lãi ròng theo tháng = lãi gộp − chi phí + thu nhập khác (chưa gồm hao hụt kho và chênh lệch két).</div>` : `<div class="ps">Chưa có dữ liệu.</div>`}</div></div>`;
+}
+/* ---------- chốt ca cuối ngày ---------- */
+S.clDate = "";
+async function renderClosing(tabBar) {
+  if (!S.clDate) S.clDate = dkey();
+  $("#main").innerHTML = `<div class="page"><div class="head"><h1>Báo cáo</h1></div>${tabBar}<div id="rpBody"><div class="muted">Đang tải…</div></div></div>`;
+  const d = await api("GET", `/api/closing?date=${S.clDate}`).catch(e => (toast(e.message, true), null));
+  if (!d || S.view !== "report" || S.rpTab !== "close") return;
+  const c = d.preview, ex = c.existing;
+  S.clData = d;
+  const row = (k, v, o = {}) => `<div class="row" style="justify-content:space-between;${o.bold ? "border-top:1px solid var(--line);padding-top:6px;" : ""}"><span>${k}</span><b class="num" style="${o.color ? "color:" + o.color : ""}">${money(v)}</b></div>`;
+  $("#rpBody").innerHTML = `<div class="grid2" style="align-items:start"><div class="card stack" style="padding:14px">
+      <div class="row"><label for="clDate" class="ps">Ngày chốt</label><input type="date" id="clDate" class="in sm" style="width:auto" value="${c.date}" data-ch="clDate"><span class="grow"></span>${ex ? `<span class="chip" style="cursor:default">Đã chốt lúc ${dt(ex.time)}</span>` : ""}</div>
+      <div class="ps">${c.n} hóa đơn · doanh thu ${money(c.rev)} · chuyển khoản ${money(c.bank)} · ghi nợ ${money(c.debt)}</div>
+      ${row("Tiền để lại két từ lần chốt trước" + (c.openFrom ? " (" + vnDate(c.openFrom) + ")" : " (chưa có)"), c.opening)}
+      ${row("+ Bán hàng thu tiền mặt", c.sales)}${row("+ Thu khác, thu nợ khách", c.thu)}${row("− Chi (sổ quỹ, hoàn khách trả hàng)", c.chi)}${row("− Tiền mặt nhập hàng", c.buy)}
+      ${row("Tiền mặt lẽ ra có trong két", c.expected, { bold: true })}
+      <div class="field"><label for="clCount">Tiền mặt đếm thực tế</label><input id="clCount" class="in num r" inputmode="numeric" placeholder="${fmt(c.expected)}" value="${ex ? fmt(ex.counted) : ""}"></div>
+      <div id="clDiff"></div>
+      <div class="field"><label for="clKeep">Để lại két cho ngày mai (tiền lẻ)</label><input id="clKeep" class="in num r" inputmode="numeric" value="${ex ? fmt(ex.kept) : ""}"><div class="ps">Phần còn lại là tiền mang đi cất / nộp ngân hàng.</div></div>
+      <div class="field"><label for="clNote">Ghi chú</label><input id="clNote" class="in" value="${esc(ex ? ex.note : "")}" placeholder="vd thiếu 5k tiền lẻ"></div>
+      <div class="row"><span class="grow"></span><button class="btn" data-act="clPrint">${icon("print")} In phiếu chốt ca</button><button class="btn pri" data-act="clSave">${ex ? "Chốt lại" : "Chốt ca"}</button></div></div>
+    <div class="section"><h2>Các lần chốt gần đây</h2>${d.list.length ? `<div class="tbl"><table><thead><tr><th>Ngày</th><th class="r">Đếm</th><th class="r">Chênh</th><th class="r">Mang đi</th></tr></thead><tbody>${d.list.map(x => `<tr><td>${esc(vnDate(x.date))}<div class="ps">${esc(x.staff || "")}${x.note ? " · " + esc(x.note) : ""}</div></td><td class="r num">${fmt(x.counted)}</td><td class="r num" style="color:${x.diff < 0 ? "var(--red)" : x.diff > 0 ? "var(--green-text)" : "inherit"}">${x.diff ? (x.diff > 0 ? "+" : "") + fmt(x.diff) : "0"}</td><td class="r num">${fmt(x.take)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="ps">Chưa có lần chốt nào.</div>`}</div></div>`;
+  clDiff();
+}
+function clDiff() {
+  const c = S.clData.preview, el = $("#clCount"), box = $("#clDiff"); if (!el || !box) return;
+  if (!el.value.trim()) { box.innerHTML = ""; return; }
+  const diff = parseMoney(el.value) - c.expected;
+  box.innerHTML = `<div class="row" style="justify-content:space-between"><span>Chênh lệch</span><b class="num" style="font-size:18px;color:${diff === 0 ? "var(--green-text)" : "var(--red)"}">${diff === 0 ? "Khớp" : (diff > 0 ? "Thừa " : "Thiếu ") + money(Math.abs(diff))}</b></div>`;
+}
+ON_INPUT.clCount = () => clDiff();
+ON_CHANGE.clDate = el => { S.clDate = el.value || dkey(); VIEWS.report(); };
+function clForm() { return { date: S.clData.preview.date, counted: parseMoney($("#clCount").value), kept: parseMoney($("#clKeep").value), note: $("#clNote").value }; }
+ACT.clSave = async () => {
+  if (!$("#clCount").value.trim()) return toast("Nhập số tiền mặt đã đếm", true);
+  const f = clForm(), exp = S.clData.preview.expected, diff = f.counted - exp;
+  const r = await run(() => api("POST", "/api/closing", f), diff === 0 ? "Đã chốt ca, tiền khớp" : `Đã chốt ca, ${diff > 0 ? "thừa" : "thiếu"} ${money(Math.abs(diff))}`);
+  if (r) { S.clLast = r; VIEWS.report(); }
+};
+ACT.clPrint = () => {
+  const c = S.clData.preview, f = clForm(), st = S.settings, diff = f.counted - c.expected;
+  const rows = (k, v, bold) => `<tr><td>${k}</td><td class="r">${bold ? "<b>" : ""}${fmt(v)}${bold ? "</b>" : ""}</td></tr>`;
+  printHtml(`<div class="rc ${st.paper === "58" ? "p58" : st.paper === "a5" ? "a5" : ""}"><div class="c shop">${esc(st.shopName || "")}</div><hr><div class="c big">CHỐT CA CUỐI NGÀY</div><div class="c">${vnDate(c.date)}</div><hr>
+    <table>${rows("Số hóa đơn", c.n)}${rows("Doanh thu", c.rev, true)}${rows("Chuyển khoản", c.bank)}${rows("Ghi nợ", c.debt)}</table><hr>
+    <table>${rows("Tiền đầu ca (để lại hôm trước)", c.opening)}${rows("+ Bán tiền mặt", c.sales)}${rows("+ Thu khác", c.thu)}${rows("− Chi", c.chi)}${rows("− Nhập hàng tiền mặt", c.buy)}${rows("TIỀN LẼ RA CÓ", c.expected, true)}${f.counted ? rows("Tiền đếm thực tế", f.counted, true) + `<tr><td>Chênh lệch</td><td class="r"><b>${diff === 0 ? "Khớp" : (diff > 0 ? "+" : "") + fmt(diff)}</b></td></tr>` + rows("Để lại két", f.kept) + rows("Mang đi", f.counted - f.kept) : ""}</table>
+    ${f.note ? `<div>Ghi chú: ${esc(f.note)}</div>` : ""}<hr><div>Người chốt: ${esc((S.me || {}).name || "")}</div><div>Ký tên: ______________</div><div class="c">In lúc ${dt(Date.now())}</div></div>`);
+};
 ACT.rpCustSort = b => { S.rpCustSort = b.dataset.v; VIEWS.report(); };
 ACT.rpCustAll = () => { S.rpCustAll = !S.rpCustAll; VIEWS.report(); };
 ACT.rpPeriod = b => { S.rpPeriod = b.dataset.v; S.rpOpen = null; VIEWS.report(); };
