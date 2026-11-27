@@ -181,6 +181,13 @@ async function pollFeed() {
   if (feedSeq != null) for (const e of r.items || []) announceMoney(e.amount);
   feedSeq = r.seq;
 }
+let saleSeq = null;
+async function pollSales() {
+  if (!can("manage") && !can("report")) return;
+  const r = await api("GET", "/api/sales/feed" + (saleSeq == null ? "" : "?after=" + saleSeq));
+  if (saleSeq != null) for (const e of r.items || []) if (e.uid !== S.me.id) toast(`Nhân viên ${e.staff} đã bán ${money(e.total)}đ (${e.code})`);
+  saleSeq = r.seq;
+}
 function startPoll() {
   clearInterval(pollT);
   pollT = setInterval(async () => {
@@ -191,6 +198,7 @@ function startPoll() {
       else if (r.v !== S.version) await refresh(true);
       if (APP) { syncOutbox(); apkCheck(); }
       pollFeed().catch(() => {});
+      pollSales().catch(() => {});
     } catch (e) { if (APP && e.net) setOffline(true); }
   }, 3500);
 }

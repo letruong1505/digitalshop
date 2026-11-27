@@ -432,7 +432,15 @@ func (s *Server) routes() {
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		inv, err := s.db.CreateInvoice(req, u)
 		if err != nil { failErr(w, err); return }
+		if !inv.Void { pushSale(u, inv) }
 		writeJSON(w, inv)
+	}))
+	m.HandleFunc("GET /api/sales/feed", s.auth("manage|report", func(w http.ResponseWriter, r *http.Request, u *User) {
+		var after int64 = -1
+		if v := r.URL.Query().Get("after"); v != "" { after, _ = strconv.ParseInt(v, 10, 64) }
+		seq, evts := saleFeedAfter(after)
+		if after < 0 { evts = nil }
+		writeJSON(w, map[string]any{"seq": seq, "items": evts})
 	}))
 	m.HandleFunc("POST /api/invoices/{id}/edit", s.auth("sell", func(w http.ResponseWriter, r *http.Request, u *User) {
 		var req SaleReq

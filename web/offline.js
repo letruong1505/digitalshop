@@ -118,7 +118,7 @@ async function syncOutbox() {
     }
   } finally { syncing = false; }
   await offBar();
-  if (did) { toast(`Đã đẩy ${did} hóa đơn bán ngoại tuyến về máy chủ`); try { await refresh(true); } catch (e) {} }
+  if (did) { toast(`Đã cập nhật ${did} đơn hàng offline lên máy chủ`); try { await refresh(true); } catch (e) {} }
 }
 ACT.offList = async () => {
   const list = await obAll();
