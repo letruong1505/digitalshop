@@ -84,6 +84,7 @@ type SaleReq struct {
 	OrderID string  `json:"orderId"`
 	// Hóa đơn bán lúc ngoại tuyến trên Android: ghi đúng giờ đã bán và đúng số tiền khách đã trả
 	Offline   bool    `json:"offline"`
+	OffStaff  string  `json:"offStaff"` // tên nhân viên đã bán lúc ngoại tuyến (đẩy lên sau khi người khác đăng nhập)
 	Time      int64   `json:"time"`
 	PromoDisc float64 `json:"promoDisc"`
 	PromoNote string  `json:"promoNote"`
@@ -182,7 +183,7 @@ func createInvoiceTx(s *State, t *Tx, req SaleReq, u *User) (*Invoice, error) {
 		total := sub - disc - promo - ptsDisc
 		promoNote := ""
 		for i, h := range hits { if i > 0 { promoNote += ", " }; promoNote += h.Name }
-		inv := &Invoice{ID: req.CID, Time: saleTime, Lines: lines, Sub: sub, Disc: disc + promo + ptsDisc, Promo: promo, PtsUsed: ptsUsed, PtsDisc: ptsDisc, PromoNote: promoNote, PromoHits: hits, Total: total, Cost: r0(cost), Staff: u.Name, Note: strings.TrimSpace(req.Note)}
+		inv := &Invoice{ID: req.CID, Time: saleTime, Lines: lines, Sub: sub, Disc: disc + promo + ptsDisc, Promo: promo, PtsUsed: ptsUsed, PtsDisc: ptsDisc, PromoNote: promoNote, PromoHits: hits, Total: total, Cost: r0(cost), Staff: offStaffName(s, req, u), Note: strings.TrimSpace(req.Note)}
 		if inv.ID == "" { inv.ID = newID() }
 		if cust != nil { inv.CustID, inv.CustName = cust.ID, cust.Name }
 		switch req.Method {
@@ -803,4 +804,12 @@ func addDays(d string, n int) string {
 	t, err := time.ParseInLocation("2006-01-02", d, time.Local)
 	if err != nil { return d }
 	return t.AddDate(0, 0, n).Format("2006-01-02")
+}
+
+// offStaffName: hóa đơn bán ngoại tuyến ghi đúng nhân viên đã bán, miễn là tên đó có trong danh sách nhân viên.
+func offStaffName(s *State, req SaleReq, u *User) string {
+	if req.Offline && req.OffStaff != "" {
+		for _, x := range s.Users { if x.Name == req.OffStaff { return x.Name } }
+	}
+	return u.Name
 }

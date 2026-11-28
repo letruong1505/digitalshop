@@ -21,6 +21,38 @@ async function idbDo(store_, mode, fn) {
   const db = await idb();
   return new Promise((ok, no) => { const tx = db.transaction(store_, mode); const rq = fn(tx.objectStore(store_)); tx.oncomplete = () => ok(rq && rq.result); tx.onerror = () => no(tx.error); });
 }
+/* ---------- đăng nhập ngoại tuyến cho nhân viên bán hàng ---------- */
+function sha256hex(str) {
+  const msg = new TextEncoder().encode(str);
+  if (window.crypto && crypto.subtle) return crypto.subtle.digest("SHA-256", msg).then(d => [...new Uint8Array(d)].map(x => x.toString(16).padStart(2, "0")).join(""));
+  const K = [], H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+  for (let n = 2, c = 0; c < 64; n++) { let p = true; for (let i = 2; i * i <= n; i++) if (n % i === 0) { p = false; break; } if (p) { K[c++] = (Math.cbrt(n) % 1) * 4294967296 | 0; } }
+  const l = msg.length, w = new Uint32Array(((l + 9 + 63) >> 6) << 4), v = new Uint8Array(w.buffer);
+  v.set(msg); v[l] = 0x80; const dv = new DataView(w.buffer); dv.setUint32(w.length * 4 - 4, l * 8, false); dv.setUint32(w.length * 4 - 8, Math.floor(l / 536870912), false);
+  const rr = (x, n) => (x >>> n) | (x << (32 - n));
+  for (let i = 0; i < w.length; i += 16) {
+    const x = new Uint32Array(64); for (let j = 0; j < 16; j++) x[j] = dv.getUint32((i + j) * 4, false);
+    for (let j = 16; j < 64; j++) { const s0 = rr(x[j - 15], 7) ^ rr(x[j - 15], 18) ^ (x[j - 15] >>> 3), s1 = rr(x[j - 2], 17) ^ rr(x[j - 2], 19) ^ (x[j - 2] >>> 10); x[j] = (x[j - 16] + s0 + x[j - 7] + s1) | 0; }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let j = 0; j < 64; j++) { const t1 = (h + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & f) ^ (~e & g)) + K[j] + x[j]) | 0, t2 = ((rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0; h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0; }
+    H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0; H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+  }
+  return Promise.resolve(H.map(x => (x >>> 0).toString(16).padStart(8, "0")).join(""));
+}
+async function offUsers() { try { const c = await kvGet("boot"); return (c && c.b && c.b.offUsers) || []; } catch (e) { return []; } }
+const offHasUsers = async () => (await offUsers()).length > 0;
+async function offLogin(pin) {
+  for (const u of await offUsers()) {
+    if (await sha256hex(u.salt + ":" + pin) === u.hash) {
+      S.offMe = { id: u.id, name: u.name, role: u.role, perms: u.perms };
+      store.set("offMe", JSON.stringify(S.offMe));
+      await enterApp(); toast("Đã vào chế độ ngoại tuyến: " + u.name);
+      return true;
+    }
+  }
+  return false;
+}
+
 const kvGet = k => idbDo("kv", "readonly", s => s.get(k));
 const kvSet = (k, v) => idbDo("kv", "readwrite", s => s.put(v, k));
 const obAll = () => idbDo("outbox", "readonly", s => s.getAll()).then(a => (a || []).sort((x, y) => x.at - y.at));
@@ -38,6 +70,7 @@ async function offLoadBoot() {
   try {
     const c = await kvGet("boot"); if (!c || !c.b) return null;
     const b = c.b;
+    try { const m = S.offMe || JSON.parse(store.get("offMe", "") || "null"); if (m) { S.offMe = m; b.me = m; } } catch (e) {} // đang đăng nhập ngoại tuyến: dùng đúng người đó
     for (const it of await obAll()) offApplyLocal(b.products, b.customers, it.local);
     S.cachedAt = c.at;
     return b;
@@ -93,7 +126,7 @@ function offSale(body, t, T) {
   else if (given > 0 && given < total && body.custId) { cash = given; debt = total - given; } else cash = total;
   const cust = body.custId ? S.customers.get(body.custId) : null;
   const time = Date.now();
-  const q = { ...body, offline: true, time, promoDisc: promo, promoNote: ((t.promo && t.promo.hits) || []).map(h => h.name).join(", ") };
+  const q = { ...body, offline: true, offStaff: S.me ? S.me.name : "", time, promoDisc: promo, promoNote: ((t.promo && t.promo.hits) || []).map(h => h.name).join(", ") };
   const inv = { id: body.cid, code: "CHỜ-" + body.cid.slice(-5).toUpperCase(), time, lines, sub: T.sub, disc: T.disc + promo, promo, promoNote: q.promoNote, total, given: cash ? given : 0, cash, bank, debt,
     custId: body.custId || "", custName: cust ? cust.name : "", staff: S.me ? S.me.name : "", note: body.note || "", offlineSale: true };
   const local = { lines: lines.map(l => ({ pid: l.pid, qty: l.qty, ratio: l.ratio })), custId: body.custId || "", debt };

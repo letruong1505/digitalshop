@@ -290,6 +290,15 @@ func (s *Server) routes() {
 				us = append(us, e)
 			}
 			out["users"] = us
+			// Ứng dụng Android: gửi kèm dữ liệu đăng nhập của nhân viên (không phải quản lý) để vẫn vào bán hàng được khi mất kết nối máy chủ
+			if bearerToken(r) != "" {
+				ou := []map[string]any{}
+				for _, x := range st.Users {
+					if x.Role == "owner" || x.can("manage") { continue }
+					ou = append(ou, map[string]any{"id": x.ID, "name": x.Name, "role": normRole(x.Role), "perms": x.perms(), "salt": x.Salt, "hash": x.Hash})
+				}
+				out["offUsers"] = ou
+			}
 			out["version"] = s.db.Version
 		})
 		out["me"] = map[string]any{"id": u.ID, "name": u.Name, "role": normRole(u.Role), "perms": u.perms()}

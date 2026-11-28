@@ -193,7 +193,9 @@ function startPoll() {
   pollT = setInterval(async () => {
     if (document.hidden) return;
     try {
-      const r = await api("GET", "/api/version");
+      let r;
+      try { r = await api("GET", "/api/version", undefined, { timeout: 6000 }); }
+      catch (e) { if (!(APP && e.net)) throw e; await new Promise(k => setTimeout(k, 1200)); r = await api("GET", "/api/version", undefined, { timeout: 8000 }); } // wifi chập chờn: thử lại một lần rồi mới báo mất kết nối
       if (APP && S.offline) { setOffline(false); await refresh(true); }
       else if (r.v !== S.version) await refresh(true);
       if (APP) { syncOutbox(); apkCheck(); }
@@ -362,7 +364,7 @@ ACT.close = () => closeSheet();
 ACT.moreMenu = () => openSheet(`<div class="sheet-h"><h2>Chức năng</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
   <div class="grid2">${NAV.filter(navOK).map(([k, t]) => `<button class="btn" style="justify-content:flex-start" data-act="go" data-v="${k}">${icon(k)} ${t}</button>`).join("")}
   <button class="btn" style="justify-content:flex-start" data-act="logout">${icon("user")} Đăng xuất (${esc(S.me.name)})</button></div>`);
-ACT.logout = async () => { await api("POST", "/api/logout").catch(() => {}); store.set("tok", ""); closeSheet(); showLogin(); };
+ACT.logout = async () => { await api("POST", "/api/logout").catch(() => {}); store.set("tok", ""); S.offMe = null; store.set("offMe", ""); closeSheet(); showLogin(); };
 
 /* ---------- đăng nhập / thiết lập lần đầu ---------- */
 let pinBuf = "";
@@ -373,7 +375,8 @@ async function boot() {
   let st;
   try { st = await api("GET", "/api/status", undefined, { noAuth: true, timeout: 6000 }); }
   catch (e) {
-    if (APP && e.net && store.get("tok", "") && await offLoadBoot()) { await enterApp(); return; } // mở app khi chưa có mạng: dùng dữ liệu lần cuối
+    if (APP && e.net && (store.get("tok", "") || store.get("offMe", "")) && await offLoadBoot()) { await enterApp(); return; } // mở app khi chưa có mạng: dùng dữ liệu lần cuối
+    if (APP && e.net && await offHasUsers()) { let sn = ""; try { sn = (await kvGet("boot")).b.settings.shopName; } catch (x) {} return showLogin(sn); } // chưa đăng nhập mà máy chủ mất kết nối: nhân viên vẫn nhập PIN để vào bán hàng
     $("#app").innerHTML = `<div class="splash">${esc(e.message)}${APP ? `<div style="margin-top:14px;display:flex;gap:8px;justify-content:center"><button class="btn pri" onclick="boot()">Thử lại</button><button class="btn" data-act="connectEdit">Đổi máy chủ</button></div>` : ""}</div>`; return;
   }
   if (st.needSetup) return showSetup();
@@ -428,9 +431,16 @@ ACT.pin = b => {
 };
 async function doLogin(pin) {
   if (!pin) return;
-  const r = await run(() => api("POST", "/api/login", { pin }, { noAuth: true }));
+  let r = null;
+  try { r = await api("POST", "/api/login", { pin }, { noAuth: true, timeout: 7000 }); }
+  catch (e) {
+    if (APP && e.net) { // máy chủ mất kết nối: đăng nhập bằng dữ liệu nhân viên đã lưu trên máy
+      if (await offLogin(pin)) return;
+      toast(await offHasUsers() ? "Mã PIN không đúng (đang ngoại tuyến, chỉ nhân viên bán hàng vào được)" : "Chưa kết nối được máy chủ. Cần kết nối ít nhất một lần để lưu dữ liệu ngoại tuyến", true);
+    } else toast(e.message, true);
+  }
   if (r && r.token) store.set("tok", r.token);
-  if (r) await enterApp(); else { const pi = $("#pinIn"); if (pi) { pi.value = ""; pi.focus(); } }
+  if (r) { S.offMe = null; store.set("offMe", ""); await enterApp(); } else { const pi = $("#pinIn"); if (pi) { pi.value = ""; pi.focus(); } }
 }
 
 /* ---------- VietQR ---------- */

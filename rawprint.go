@@ -153,7 +153,17 @@ func escposBitmap(rows [][]byte, dots, feed int, cut, drawer bool) []byte {
 // rawPrint in một phiếu K58/K80 thẳng ra máy in `printer`.
 func rawPrint(body, paper, printer string, feed int, cut, drawer bool) error {
 	img, err := rawRender(body, paper)
-	if err != nil { return err }
+	if err != nil {
+		// Không dựng được ảnh phiếu: in chữ không dấu để quầy vẫn ra phiếu
+		say("In thẳng: không dựng được ảnh phiếu, chuyển sang in chữ không dấu: " + err.Error())
+		cols := 48
+		if paper == "58" { cols = 32 }
+		lines := htmlToLines(body, cols)
+		if len(lines) == 0 { return err }
+		data := escposText(lines, feed, cut, drawer)
+		if p := os.Getenv("DS_PRINT_RAWFILE"); p != "" { return os.WriteFile(p, data, 0o600) }
+		return sendRaw(printer, data)
+	}
 	dots, _ := rawDots(paper)
 	rows, h := rasterize(img, dots)
 	if h == 0 { return uerr("Phiếu trống, không có gì để in") }
