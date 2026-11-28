@@ -216,6 +216,21 @@ function openDisplayMode() { const u = store.get("displayUrl", ""); if (u) locat
 /* ---------- thông báo có bản Android mới ---------- */
 let apkAt = 0;
 const verNum = v => String(v || "0").split(".").reduce((a, x) => a * 1000 + (parseInt(x, 10) || 0), 0);
+/* Cập nhật Android ngay trong ứng dụng (cần bản có DSUpdater; bản cũ hơn tải qua trình duyệt) */
+const apkInApp = () => !!(window.DSUpdater && window.DSUpdater.available);
+const apkBtn = r => apkInApp() ? `<button type="button" class="btn pri" data-act="apkInstall" data-url="${esc(r.url)}">Tải và cập nhật bản ${esc(r.version)}</button>` : `<a class="btn pri" href="${esc(r.url)}">Tải bản ${esc(r.version)}</a>`;
+function apkMsg(t, err) { document.querySelectorAll(".apkmsg").forEach(e => { e.textContent = t; e.style.color = err ? "var(--red)" : ""; }); }
+window.dsApkProgress = p => apkMsg("Đang tải bản cập nhật… " + p + "%");
+window.dsApkState = (st, m) => {
+  if (st === "permission") apkMsg("Android hỏi cho phép: bật “Cho phép từ nguồn này” cho Digital Shop, rồi quay lại và bấm Tiếp tục cài.");
+  else if (st === "installing") apkMsg("Đã tải xong. Bấm Cài đặt / Cập nhật ở cửa sổ Android vừa hiện. Dữ liệu được giữ nguyên.");
+  else apkMsg(m || "Không cập nhật được", true);
+  document.querySelectorAll('[data-act="apkInstall"]').forEach(b => { b.disabled = false; b.textContent = st === "permission" ? "Tiếp tục cài" : b.textContent; b.dataset.retry = st === "permission" ? "1" : ""; });
+};
+ACT.apkInstall = b => {
+  if (b.dataset.retry) { b.dataset.retry = ""; apkMsg("Đang mở trình cài đặt…"); return window.DSUpdater.retryInstall(); }
+  b.disabled = true; apkMsg("Đang tải bản cập nhật…"); window.DSUpdater.install(b.dataset.url);
+};
 async function apkCheck(force) {
   if (!APP || !window.DS_APK || S.offline || (!force && Date.now() - apkAt < 30 * 60 * 1000)) return;
   apkAt = Date.now();
@@ -224,7 +239,7 @@ async function apkCheck(force) {
     if (!r || verNum(r.version) <= verNum(window.DS_APK) || (!force && store.get("apkSkip", "") === r.version)) return;
     let el = $("#apkBar"); if (el) el.remove();
     el = document.createElement("div"); el.id = "apkBar"; el.className = "apkbar";
-    el.innerHTML = `<a href="${esc(r.url)}">Có bản Digital Shop ${esc(r.version)} mới (đang dùng ${esc(window.DS_APK)}). Bấm để tải, rồi mở file để cập nhật. Dữ liệu được giữ nguyên.</a><button type="button" aria-label="Để sau" data-act="apkSkip" data-v="${esc(r.version)}">×</button>`;
+    el.innerHTML = `<div class="apkin"><span>Có bản Digital Shop ${esc(r.version)} mới (đang dùng ${esc(window.DS_APK)}). Dữ liệu được giữ nguyên.</span> ${apkBtn(r)} <span class="apkmsg ps"></span></div><button type="button" aria-label="Để sau" data-act="apkSkip" data-v="${esc(r.version)}">×</button>`;
     document.body.appendChild(el);
   } catch (e) { /* không có mạng hoặc chưa có bản: bỏ qua */ }
 }

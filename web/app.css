@@ -388,3 +388,6 @@ tr.hit td{background:var(--green-soft)}
 .toast.err .ti{background:#e5675c}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
 @media (prefers-reduced-motion:reduce){.toast{animation:none}}
+.apkin{flex:1;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.apkbar .btn{background:#fff;color:#0B3D27;border:0;font-size:14px;padding:8px 14px;line-height:1.2;text-decoration:none;flex:none}
+.apkbar .apkmsg{color:#cfe9da;font-weight:500;font-size:13px}

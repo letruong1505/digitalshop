@@ -1040,7 +1040,7 @@ ACT.apkCheckNow = async () => {
     const r = await api("GET", "/api/android/latest");
     if (!r) throw new Error("Chưa có thông tin bản Android");
     if (verNum(r.version) <= verNum(window.DS_APK)) { if (box) box.innerHTML = `Bạn đang dùng bản Android mới nhất (${esc(window.DS_APK)}).`; return; }
-    if (box) box.innerHTML = `<div style="color:var(--text)"><b>Có bản Android mới ${esc(r.version)}</b></div><div style="margin-top:6px"><a class="btn pri" href="${esc(r.url)}">Tải bản ${esc(r.version)}</a></div><div class="ps" style="margin-top:6px">Tải xong, mở file vừa tải và bấm Cài đặt (Cập nhật). Dữ liệu được giữ nguyên. Nếu Android hỏi, cho phép cài ứng dụng từ trình duyệt.</div>`;
+    if (box) box.innerHTML = `<div style="color:var(--text)"><b>Có bản Android mới ${esc(r.version)}</b></div><div style="margin-top:6px">${apkBtn(r)}</div><div class="apkmsg ps" style="margin-top:6px">${apkInApp() ? "Ứng dụng tự tải rồi mở trình cài đặt của Android; bấm Cập nhật. Lần đầu Android hỏi cho phép cài từ Digital Shop, hãy bật lên. Dữ liệu được giữ nguyên." : "Tải xong, mở file vừa tải và bấm Cài đặt (Cập nhật). Dữ liệu được giữ nguyên."}</div>`;
   } catch (e) { if (box) box.textContent = e.net ? "Không kết nối được máy tính. Kiểm tra mạng rồi thử lại." : (e.message || "Không kiểm tra được"); }
 };
 ACT.updCheck = async () => {
