@@ -143,6 +143,11 @@ func (p *printer) run(body, paper string) error {
 }
 
 func (s *Server) printRoutes(m *http.ServeMux) {
+	m.HandleFunc("GET /api/printers", s.auth("manage", func(w http.ResponseWriter, r *http.Request, u *User) {
+		names, def := listPrinters()
+		if names == nil { names = []string{} }
+		writeJSON(w, map[string]any{"printers": names, "default": def, "supported": runtime.GOOS == "windows"})
+	}))
 	m.HandleFunc("POST /api/print", s.auth("", func(w http.ResponseWriter, r *http.Request, u *User) {
 		off := false
 		s.db.Read(func(st *State) { off = st.Settings.NoRemotePrint })
@@ -152,6 +157,17 @@ func (s *Server) printRoutes(m *http.ServeMux) {
 		if err := readJSON(r, &req); err != nil { failErr(w, err); return }
 		body := strings.TrimSpace(cleanPrintHTML(req.HTML))
 		if body == "" { failErr(w, uerr("Không có nội dung để in")); return }
+		var set Settings
+		s.db.Read(func(st *State) { set = st.Settings })
+		if set.PrinterName != "" && (req.Paper == "58" || req.Paper == "80") && runtime.GOOS == "windows" {
+			go func() {
+				prn.mu.Lock()
+				defer prn.mu.Unlock()
+				if err := rawPrint(body, req.Paper, set.PrinterName, set.PrintFeed/3, set.PrintCut, set.PrintDrawer); err != nil { fmt.Println("In thẳng lỗi:", err) }
+			}()
+			writeJSON(w, map[string]bool{"ok": true})
+			return
+		}
 		if printBrowser() == "" { failErr(w, uerr("Máy tính chạy Digital Shop chưa có Edge/Chrome để in. Hãy cài trên máy đó.")); return }
 		go func() {
 			if err := prn.run(body, req.Paper); err != nil { fmt.Println("In phiếu lỗi:", html.EscapeString(err.Error())) }

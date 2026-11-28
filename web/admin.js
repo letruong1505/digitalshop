@@ -696,6 +696,9 @@ VIEWS.settings = function () {
       <div class="field"><label for="st-paper">Khổ giấy</label><select id="st-paper" class="in"><option value="80" ${st.paper === "80" ? "selected" : ""}>K80 (máy in nhiệt 80mm)</option><option value="58" ${st.paper === "58" ? "selected" : ""}>K58 (máy in nhiệt 58mm)</option><option value="a5" ${st.paper === "a5" ? "selected" : ""}>A5 (máy in thường)</option></select></div>
       <div class="field"><label for="st-feed">Số dòng trống cuối phiếu (để máy cắt đúng chỗ)</label><input id="st-feed" class="in num" type="number" min="1" max="30" value="${st.printFeed || 8}"></div>
       <div class="field"><label for="st-footer">Lời chào cuối hóa đơn</label><input id="st-footer" class="in" value="${esc(st.footer || "")}"></div>
+      <div class="field full"><label for="st-prn">Máy in phiếu: in thẳng, không mở trình duyệt (Windows, máy in nhiệt K58/K80)</label><select id="st-prn" class="in"><option value="">Dùng hộp thoại in của trình duyệt</option>${st.printerName ? `<option value="${esc(st.printerName)}" selected>${esc(st.printerName)}</option>` : ""}</select><div class="ps" id="st-prn-hint">Chọn đúng tên máy in nhiệt đã cài trong Windows. Phiếu được gửi thẳng tới máy in, có tiếng Việt đầy đủ.</div></div>
+      <label class="check"><input type="checkbox" id="st-cut" ${st.printCut || !st.printerName ? "checked" : ""}> Tự cắt giấy sau mỗi phiếu</label>
+      <label class="check"><input type="checkbox" id="st-drawer" ${st.printDrawer ? "checked" : ""}> Mở két tiền khi in phiếu (két nối vào máy in)</label>
       <label class="check full"><input type="checkbox" id="st-auto" ${st.autoPrint ? "checked" : ""}> Tự in hóa đơn sau mỗi lần thanh toán</label>
       <label class="check full"><input type="checkbox" id="st-rprint" ${st.noRemotePrint ? "" : "checked"}> Cho phép điện thoại (app Android) in qua máy tính này. Đặt máy in phiếu làm máy in mặc định của Windows, phiếu sẽ in thẳng không hỏi.</label></div>
       <div><button type="button" class="btn sm" data-act="testPrint">${icon("print")} In thử</button> <span class="ps">Lần đầu in, chọn đúng máy in nhiệt, lề “Không”, tắt “Đầu trang và chân trang”.</span></div></div>
@@ -752,6 +755,7 @@ VIEWS.settings = function () {
   </div>`;
   const f = $("#setForm"); if (f) f.addEventListener("submit", saveSettings);
   if (own) { loadLic(); loadBackups(); loadExt(); }
+  loadPrinters();
 };
 function usersHtml() {
   const own = isAdmin();
@@ -801,11 +805,19 @@ async function saveSettings(e) {
   const v = id => $(id).value, c = id => $(id).checked;
   const bin = v("#st-bank"), key = v("#st-key").trim(), del = $("#st-delkey") && c("#st-delkey");
   const body = { shopName: v("#st-name"), phone: v("#st-phone"), addr: v("#st-addr"), bankBin: bin, bankName: (BANKS.find(b => b[0] === bin) || [])[1] || "", acct: v("#st-acct").replace(/\s/g, ""), holder: v("#st-holder").toUpperCase(),
-    paper: v("#st-paper"), footer: v("#st-footer"), printFeed: Math.min(30, Math.max(1, +v("#st-feed") || 8)), autoPrint: c("#st-auto"), noRemotePrint: !c("#st-rprint"), expWarn: +v("#st-warn") || 30, expDanger: +v("#st-danger") || 7, minMargin: +v("#st-margin") || 0,
+    paper: v("#st-paper"), footer: v("#st-footer"), printFeed: Math.min(30, Math.max(1, +v("#st-feed") || 8)), autoPrint: c("#st-auto"), printerName: v("#st-prn"), printCut: c("#st-cut"), printDrawer: c("#st-drawer"), noRemotePrint: !c("#st-rprint"), expWarn: +v("#st-warn") || 30, expDanger: +v("#st-danger") || 7, minMargin: +v("#st-margin") || 0,
     blockExpired: c("#st-block"), sellNegative: c("#st-neg"), staffEditPrice: c("#st-sprice"), staffSeeCost: c("#st-scost"), apiKey: del ? "" : key, keepKey: !del && !key };
   if (await run(() => api("POST", "/api/settings", body), "Đã lưu cài đặt")) await refresh(true);
 }
 ACT.testPrint = () => printHtml(receiptHtml({ code: "HD-THU", time: Date.now(), staff: S.me.name, lines: [{ name: "Mì Hảo Hảo tôm chua cay", unit: "gói", qty: 2, price: 4500 }, { name: "Bia Sài Gòn lon", unit: "thùng", qty: 1, price: 270000 }], sub: 279000, disc: 0, total: 279000, cash: 279000, given: 300000 }));
+async function loadPrinters() {
+  const sel = $("#st-prn"); if (!sel) return;
+  const r = await api("GET", "/api/printers").catch(() => null); if (!r) return;
+  if (!r.supported) { sel.disabled = true; $("#st-prn-hint").textContent = "In thẳng chỉ dùng được khi phần mềm chạy trên máy tính Windows có máy in."; return; }
+  const cur = S.settings.printerName || "";
+  sel.innerHTML = `<option value="">Dùng hộp thoại in của trình duyệt</option>` + r.printers.map(n => `<option value="${esc(n)}" ${n === cur ? "selected" : ""}>${esc(n)}${n === r.default ? " (mặc định Windows)" : ""}</option>`).join("");
+  if (cur && !r.printers.includes(cur)) sel.insertAdjacentHTML("beforeend", `<option value="${esc(cur)}" selected>${esc(cur)} (không thấy trong Windows)</option>`);
+}
 async function loadBackups() {
   const l = await api("GET", "/api/backups").catch(() => null); const box = $("#bkList"); if (!l || !box) return;
   box.innerHTML = l.length ? `<div class="tbl"><table><tbody>${l.slice(0, 12).map(b => `<tr><td class="num">${esc(b.name)}</td><td class="r ps">${(b.size / 1024).toFixed(0)} KB</td><td class="r"><button class="btn sm" data-act="bkRestore" data-n="${esc(b.name)}" data-confirm="Bấm lần nữa: khôi phục về bản này">Khôi phục</button></td></tr>`).join("")}</tbody></table></div>` : "Chưa có bản sao lưu.";

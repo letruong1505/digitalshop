@@ -235,6 +235,9 @@ type Settings struct {
 	Paper          string  `json:"paper"`
 	AutoPrint      bool    `json:"autoPrint"`
 	NoRemotePrint  bool    `json:"noRemotePrint"` // tắt nhận lệnh in từ điện thoại/thiết bị khác
+	PrinterName    string  `json:"printerName"`  // máy in nhiệt Windows để in thẳng (ESC/POS), rỗng = in qua trình duyệt
+	PrintCut       bool    `json:"printCut"`     // tự cắt giấy sau mỗi phiếu
+	PrintDrawer    bool    `json:"printDrawer"`  // mở két tiền khi in phiếu
 	PrintFeed      int     `json:"printFeed"` // số dòng trống cuối phiếu in nhiệt (1–30)
 	Footer         string  `json:"footer"`
 	ExpWarn        int     `json:"expWarn"`

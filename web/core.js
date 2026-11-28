@@ -466,7 +466,7 @@ function printHtml(html, force) {
   const feed = Math.min(30, Math.max(1, +(S.settings && S.settings.printFeed) || 8));
   const full = html + (thermal ? `<div style="height:${feed * 1.35}em"></div>` : "");
   // App Android không có máy in: gửi phiếu về máy tính chạy Digital Shop để máy tính in
-  if (APP) return remotePrint(full, paper);
+  if (APP || (thermal && S.settings.printerName)) return remotePrint(full, paper);
   P.innerHTML = full;
   fitPage(P, thermal ? (paper === "58" ? 58 : 80) : 0);
   setTimeout(() => { window.print(); }, 80);

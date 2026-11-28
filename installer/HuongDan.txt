@@ -143,6 +143,13 @@ Phát triển bởi Nam Linh Group
    - Báo cáo → "Chốt ca cuối ngày": đếm tiền mặt trong két, so với số tiền phần mềm tính được, ghi chênh lệch và số tiền để lại két;
      in phiếu chốt ca.
 
+19b. IN THẲNG RA MÁY IN NHIỆT (KHÔNG MỞ TRÌNH DUYỆT)
+   - Cài đặt → In hóa đơn → "Máy in phiếu": chọn đúng tên máy in nhiệt K58/K80 đã cài trong Windows.
+     Phiếu được gửi thẳng tới máy in, không hiện cửa sổ trình duyệt, tiếng Việt có dấu đầy đủ.
+   - "Tự cắt giấy" và "Mở két tiền" (két cắm vào máy in) bật tắt tại đây. Bấm "In thử" để kiểm tra.
+   - Điện thoại Android in qua máy tính nên cũng in thẳng như vậy. Máy tính vẫn cần cài Edge hoặc Chrome (dùng chạy ẩn để dựng phiếu).
+   - Để trống ô "Máy in phiếu" thì phần mềm in như trước (hộp thoại in của trình duyệt). Phiếu A4 (kiểm kho) luôn dùng hộp thoại in.
+
 20. ỨNG DỤNG ANDROID
    - In hóa đơn từ điện thoại: ứng dụng gửi lệnh về máy tính chạy Digital Shop để máy tính in (cần máy tính đang bật,
      máy in đã cài, có Microsoft Edge hoặc Chrome). Tắt ở Cài đặt → In hóa đơn nếu không muốn máy tính tự in.
