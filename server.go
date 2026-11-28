@@ -345,7 +345,13 @@ func (s *Server) routes() {
 				if kind == "cust" {
 					for _, inv := range st.Invoices {
 						if inv.CustID != id { continue }
-						items = append(items, map[string]any{"type": "invoice", "id": inv.ID, "code": inv.Code, "time": inv.Time, "total": inv.Total, "debt": inv.DebtAmt, "void": inv.Void, "lines": inv.Lines})
+						cp := *inv
+						if !(u.can("cost") || st.Settings.StaffSeeCost) {
+							cp.Cost = 0
+							cp.Lines = append([]Line(nil), cp.Lines...)
+							for i := range cp.Lines { cp.Lines[i].Cost = 0 }
+						}
+						items = append(items, map[string]any{"type": "invoice", "id": inv.ID, "code": inv.Code, "time": inv.Time, "total": inv.Total, "debt": inv.DebtAmt, "void": inv.Void, "lines": cp.Lines, "inv": cp})
 					}
 				} else {
 					for _, rc := range st.Receipts {

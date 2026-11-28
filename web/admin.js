@@ -74,7 +74,9 @@ async function partyDetail(kind, id) {
     else if (x.type === "sreturn") { what = `Trả hàng NCC ${esc(x.code)} · ${money(x.total)}${x.refund > 0 ? " · " + ({ cash: "NCC hoàn tiền mặt", bank: "NCC hoàn chuyển khoản", credit: "giữ làm số dư" }[x.refundMethod] || "") + " " + money(x.refund) : ""}<div class="ps">${esc(x.lines.map(l => l.name + " ×" + fq(l.qty)).join(", ")).slice(0, 120)}</div>`; eff = x.debtEffect; }
     else if (x.type === "receipt") { what = `Phiếu nhập ${esc(x.code)} · ${money(x.total)}`; eff = x.debt; }
     else { what = `${esc(x.cat || (x.kind === "thu" ? "Phiếu thu" : x.kind === "chi" ? "Phiếu chi" : "Điều chỉnh"))} ${esc(x.code)}${x.method === "bank" && x.kind !== "adj" ? " · chuyển khoản" : ""}${x.note ? `<div class="ps">${esc(x.note)}</div>` : ""}`; eff = x.debtEffect; }
-    return `<tr class="${x.void ? "void" : ""}"><td class="num ps" style="white-space:nowrap">${dt(x.time)}</td><td>${what}</td><td class="r num" style="color:${eff > 0 ? "var(--red)" : eff < 0 ? "var(--green-text)" : "inherit"}"><b>${eff ? (eff > 0 ? "+" : "") + fmt(eff) : ""}</b></td>
+    if (x.type === "invoice" && x.inv) { S.histInv = S.histInv || {}; S.histInv[x.id] = x.inv; }
+    const clk = x.type === "invoice" && x.inv ? ` click" data-act="histInv" data-id="${esc(x.id)}" data-back="${kind}:${esc(id)}` : "";
+    return `<tr class="${x.void ? "void" : ""}${clk}"><td class="num ps" style="white-space:nowrap">${dt(x.time)}</td><td>${what}</td><td class="r num" style="color:${eff > 0 ? "var(--red)" : eff < 0 ? "var(--green-text)" : "inherit"}"><b>${eff ? (eff > 0 ? "+" : "") + fmt(eff) : ""}</b></td>
       <td class="r">${x.type === "sreturn" && !x.void && can("manage") ? `<button class="btn sm ghost" data-act="sretVoid" data-id="${esc(x.id)}" data-back="supp:${esc(id)}" data-confirm="Hủy phiếu trả hàng NCC? Nợ và kho trở lại như trước">Hủy</button>` : ""}${x.type === "return" && !x.void && can("manage") ? `<button class="btn sm ghost" data-act="retVoid" data-id="${esc(x.id)}" data-back="cust:${esc(id)}" data-confirm="Hủy phiếu trả hàng? Nợ và kho trở lại như trước">Hủy</button>` : ""}${x.type === "cash" && !x.void && isOwner() ? `<button class="btn sm ghost" data-act="cashVoid" data-id="${esc(x.id)}" data-back="${kind}:${esc(id)}" data-confirm="Hủy phiếu?">Hủy</button>` : ""}</td></tr>`;
   }).join("")}</tbody></table></div>` : `<div class="ps">Chưa có giao dịch.</div>`;
 }
@@ -439,7 +441,19 @@ function invListHtml(invs) {
         <div class="row"><button class="btn sm" data-act="rpPrint" data-id="${esc(v.id)}">${icon("print")} In lại</button><button class="btn sm" data-act="rpCopy" data-id="${esc(v.id)}">Sao chép</button>${canEditInv(v) ? `<button class="btn sm" data-act="editInv" data-id="${esc(v.id)}">Sửa đơn</button>` : ""}${!v.void && isOwner() ? `<button class="btn sm danger" data-act="rpVoid" data-id="${esc(v.id)}" data-confirm="Bấm lần nữa: hủy hóa đơn, trả hàng về kho">Hủy hóa đơn</button>` : ""}</div></div></td></tr>` : ""}`;
   }).join("")}</tbody></table></div>`;
 }
-const findInv = id => (S.rpData?.invs || []).find(v => v.id === id);
+const findInv = id => (S.rpData?.invs || []).find(v => v.id === id) || (S.histInv || {})[id];
+ACT.histInv = b => {
+  const v = findInv(b.dataset.id); if (!v) return;
+  const pay = [v.cash ? "Tiền mặt " + fmt(v.cash) : "", v.bank ? "Chuyển khoản " + fmt(v.bank) : "", v.debt ? "Ghi nợ " + fmt(v.debt) : ""].filter(Boolean).join(" · ");
+  openSheet(`<div class="sheet-h"><h2>Hóa đơn ${esc(v.code)}${v.void ? " (đã hủy)" : ""}</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div class="ps">${dt(v.time)} · ${esc(v.custName || "Khách lẻ")}</div>
+    <div class="stack" style="gap:6px">${v.lines.map(l => `<div class="sumrow"><span>${esc(l.name)} · ${fq(l.qty)} ${esc(l.unit)} × ${fmt(l.price)}${l.promoName ? ` <span class="pill green">${esc(l.promoName)}</span>` : ""}</span><span class="num">${fmt(l.qty * l.price)}</span></div>`).join("")}
+      ${v.disc ? `<div class="sumrow ps"><span>Giảm giá</span><span>−${fmt(v.disc)}</span></div>` : ""}
+      <div class="sumrow"><b>Tổng</b><b class="num">${money(v.total)}</b></div>
+      ${pay ? `<div class="ps">${pay}</div>` : ""}
+      <div class="ps">${v.editOf ? "Sửa từ hóa đơn " + esc(v.editOf) + " · " : ""}${v.editedTo ? "Đã sửa thành " + esc(v.editedTo) + " · " : ""}Thu ngân ${esc(v.staff)}${seeCost() && v.cost ? " · lãi gộp " + money(v.total - v.cost) : ""}${v.note ? " · " + esc(v.note) : ""}</div></div>
+    <div class="row"><button class="btn pri" data-act="rpPrint" data-id="${esc(v.id)}">${icon("print")} In lại</button><button class="btn" data-act="rpCopy" data-id="${esc(v.id)}">Sao chép</button>${canEditInv(v) ? `<button class="btn" data-act="editInv" data-id="${esc(v.id)}">Sửa đơn</button>` : ""}<span class="grow"></span><button class="btn ghost" data-act="close">Đóng</button></div>`);
+};
 
 /* ---------- xếp hạng khách hàng: lợi nhuận / doanh thu ---------- */
 S.rpCustSort = null; S.rpCustAll = false;
