@@ -52,21 +52,41 @@ func rawRender(body, paper string) (image.Image, error) {
 	out := filepath.Join(dir, "phieu.png")
 	_, w := rawDots(paper)
 	u := (&url.URL{Scheme: "file", Path: "/" + strings.TrimPrefix(filepath.ToSlash(f), "/")}).String()
-	cmd := exec.Command(br, "--headless=new", "--user-data-dir="+filepath.Join(dir, "profile"), "--screenshot="+out,
-		fmt.Sprintf("--window-size=%d,%d", w, 7000), fmt.Sprintf("--force-device-scale-factor=%d", rawScale), "--hide-scrollbars",
-		"--default-background-color=ffffffff", "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync", "--disable-gpu", "--no-sandbox", u)
-	hideWindow(cmd)
-	done := make(chan error, 1)
-	if err := cmd.Start(); err != nil { return nil, uerr("Không chạy được trình duyệt để dựng phiếu: %v", err) }
-	go func() { done <- cmd.Wait() }()
-	select {
-	case <-done:
-	case <-time.After(30 * time.Second):
-		cmd.Process.Kill()
-		<-done
+	var lastErr string
+	var b []byte
+	// Thử lần lượt vài kiểu chạy ẩn: Edge/Chrome đời cũ không hiểu --headless=new, máy khác lại lỗi với --disable-gpu.
+	variants := [][]string{
+		{"--headless=new"},
+		{"--headless"},
+		{"--headless=new", "--disable-gpu", "--disable-software-rasterizer"},
+		{"--headless", "--disable-gpu"},
 	}
-	b, err := os.ReadFile(out)
-	if err != nil { return nil, uerr("Trình duyệt ẩn không tạo được ảnh phiếu (%s). Thử đóng hết cửa sổ Edge/Chrome rồi in lại", filepath.Base(br)) }
+	for i, hv := range variants {
+		os.Remove(out)
+		args := append([]string{}, hv...)
+		args = append(args, "--user-data-dir="+filepath.Join(dir, fmt.Sprintf("profile%d", i)), "--screenshot="+out,
+			fmt.Sprintf("--window-size=%d,%d", w, 7000), fmt.Sprintf("--force-device-scale-factor=%d", rawScale), "--hide-scrollbars",
+			"--default-background-color=ffffffff", "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync",
+			"--disable-features=msEdgeSync,msWebOOUI,msPdfOOUI", "--virtual-time-budget=4000", "--no-sandbox", u)
+		cmd := exec.Command(br, args...)
+		hideWindow(cmd)
+		var ob bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &ob, &ob
+		if err := cmd.Start(); err != nil { return nil, uerr("Không chạy được trình duyệt để dựng phiếu: %v", err) }
+		done := make(chan error, 1)
+		go func() { done <- cmd.Wait() }()
+		select {
+		case <-done:
+		case <-time.After(25 * time.Second):
+			cmd.Process.Kill()
+			<-done
+		}
+		if d, err := os.ReadFile(out); err == nil && len(d) > 100 { b = d; break }
+		lastErr = strings.TrimSpace(ob.String())
+		if len(lastErr) > 300 { lastErr = lastErr[:300] }
+		say(fmt.Sprintf("In thẳng: cách %d không chụp được phiếu: %s", i+1, lastErr))
+	}
+	if b == nil { return nil, uerr("Trình duyệt ẩn không tạo được ảnh phiếu (%s). Chi tiết: %s", filepath.Base(br), lastErr) }
 	return png.Decode(bytes.NewReader(b))
 }
 
