@@ -22,7 +22,7 @@ var webFS embed.FS
 
 const (
 	AppName    = "Digital Shop"
-	AppVersion = "3.1.19"
+	AppVersion = "3.1.20"
 	// TermsVersion: tăng khi sửa web/legal/DieuKhoanSuDung.txt
 	TermsVersion = "1.1"
 )
