@@ -41,7 +41,9 @@ html,body{width:%dpx;margin:0;background:#fff;overflow:hidden}
 }
 
 // rawRender chụp trang thành ảnh PNG qua trình duyệt ẩn.
-func rawRender(body, paper string) (image.Image, error) {
+var rawVariant = 0 // kiểu chạy ẩn đã thành công lần trước: lần sau thử kiểu này trước, khỏi mất thời gian thử kiểu lỗi
+
+func rawRender(body, paper string, height int) (image.Image, error) {
 	br := printBrowser()
 	if br == "" { return nil, uerr("Máy tính chưa có Edge/Chrome để dựng phiếu. Hãy cài Edge hoặc Chrome.") }
 	dir, err := os.MkdirTemp("", "dsraw")
@@ -61,13 +63,16 @@ func rawRender(body, paper string) (image.Image, error) {
 		{"--headless=new", "--disable-gpu", "--disable-software-rasterizer"},
 		{"--headless", "--disable-gpu"},
 	}
-	for i, hv := range variants {
+	order := []int{rawVariant}
+	for i := range variants { if i != rawVariant { order = append(order, i) } }
+	for _, i := range order {
+		hv := variants[i]
 		os.Remove(out)
 		args := append([]string{}, hv...)
 		args = append(args, "--user-data-dir="+filepath.Join(dir, fmt.Sprintf("profile%d", i)), "--screenshot="+out,
-			fmt.Sprintf("--window-size=%d,%d", w, 7000), fmt.Sprintf("--force-device-scale-factor=%d", rawScale), "--hide-scrollbars",
+			fmt.Sprintf("--window-size=%d,%d", w, height), fmt.Sprintf("--force-device-scale-factor=%d", rawScale), "--hide-scrollbars",
 			"--default-background-color=ffffffff", "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--disable-sync",
-			"--disable-features=msEdgeSync,msWebOOUI,msPdfOOUI", "--virtual-time-budget=4000", "--no-sandbox", u)
+			"--disable-features=msEdgeSync,msWebOOUI,msPdfOOUI,Translate", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--mute-audio", "--no-sandbox", u)
 		cmd := exec.Command(br, args...)
 		hideWindow(cmd)
 		var ob bytes.Buffer
@@ -81,7 +86,7 @@ func rawRender(body, paper string) (image.Image, error) {
 			cmd.Process.Kill()
 			<-done
 		}
-		if d, err := os.ReadFile(out); err == nil && len(d) > 100 { b = d; break }
+		if d, err := os.ReadFile(out); err == nil && len(d) > 100 { b = d; rawVariant = i; break }
 		lastErr = strings.TrimSpace(ob.String())
 		if len(lastErr) > 300 { lastErr = lastErr[:300] }
 		say(fmt.Sprintf("In thẳng: cách %d không chụp được phiếu: %s", i+1, lastErr))
@@ -152,7 +157,14 @@ func escposBitmap(rows [][]byte, dots, feed int, cut, drawer bool) []byte {
 
 // rawPrint in một phiếu K58/K80 thẳng ra máy in `printer`.
 func rawPrint(body, paper, printer string, feed int, cut, drawer bool) error {
-	img, err := rawRender(body, paper)
+	t0 := time.Now()
+	img, err := rawRender(body, paper, 2400)
+	if err == nil { say(fmt.Sprintf("In thẳng: dựng ảnh phiếu mất %.1fs", time.Since(t0).Seconds())) }
+	if err == nil { // phiếu dài hơn khung chụp: chụp lại với khung cao hơn
+		if _, h := rasterize(img, func() int { d, _ := rawDots(paper); return d }()); h > img.Bounds().Dy()-12 {
+			if img2, err2 := rawRender(body, paper, 9000); err2 == nil { img = img2 }
+		}
+	}
 	if err != nil {
 		// Không dựng được ảnh phiếu: in chữ không dấu để quầy vẫn ra phiếu
 		say("In thẳng: không dựng được ảnh phiếu, chuyển sang in chữ không dấu: " + err.Error())
