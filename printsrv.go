@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"os"
@@ -160,18 +159,26 @@ func (s *Server) printRoutes(m *http.ServeMux) {
 		var set Settings
 		s.db.Read(func(st *State) { set = st.Settings })
 		if set.PrinterName != "" && (req.Paper == "58" || req.Paper == "80") && runtime.GOOS == "windows" {
-			go func() {
-				prn.mu.Lock()
-				defer prn.mu.Unlock()
-				if err := rawPrint(body, req.Paper, set.PrinterName, set.PrintFeed/3, set.PrintCut, set.PrintDrawer); err != nil { fmt.Println("In thẳng lỗi:", err) }
-			}()
+			prn.mu.Lock()
+			t0 := time.Now()
+			err := rawPrint(body, req.Paper, set.PrinterName, set.PrintFeed/3, set.PrintCut, set.PrintDrawer)
+			prn.mu.Unlock()
+			if err != nil {
+				say("In thẳng lỗi (máy in " + set.PrinterName + "): " + err.Error())
+				failErr(w, uerr("In thẳng không được: %v", err))
+				return
+			}
+			say(fmt.Sprintf("In thẳng xong tới %q trong %.1fs", set.PrinterName, time.Since(t0).Seconds()))
 			writeJSON(w, map[string]bool{"ok": true})
 			return
 		}
 		if printBrowser() == "" { failErr(w, uerr("Máy tính chạy Digital Shop chưa có Edge/Chrome để in. Hãy cài trên máy đó.")); return }
-		go func() {
-			if err := prn.run(body, req.Paper); err != nil { fmt.Println("In phiếu lỗi:", html.EscapeString(err.Error())) }
-		}()
+		if err := prn.run(body, req.Paper); err != nil {
+			say("In phiếu lỗi: " + err.Error())
+			failErr(w, err)
+			return
+		}
+		say("Đã gửi phiếu tới hộp thoại in của trình duyệt")
 		writeJSON(w, map[string]bool{"ok": true})
 	}))
 }

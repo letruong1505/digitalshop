@@ -64,10 +64,9 @@ func rawRender(body, paper string) (image.Image, error) {
 	case <-time.After(30 * time.Second):
 		cmd.Process.Kill()
 		<-done
-		return nil, uerr("Dựng phiếu quá lâu, đã hủy")
 	}
 	b, err := os.ReadFile(out)
-	if err != nil { return nil, uerr("Không dựng được ảnh phiếu") }
+	if err != nil { return nil, uerr("Trình duyệt ẩn không tạo được ảnh phiếu (%s). Thử đóng hết cửa sổ Edge/Chrome rồi in lại", filepath.Base(br)) }
 	return png.Decode(bytes.NewReader(b))
 }
 
