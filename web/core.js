@@ -107,7 +107,7 @@ async function api(method, path, body, opt = {}) {
   if (APP) { // ứng dụng Android: đăng nhập bằng token, giới hạn thời gian chờ để biết sớm là mất mạng
     const tk = store.get("tok", ""); if (tk) init.headers["Authorization"] = "Bearer " + tk;
     if (path === "/api/login") init.headers["X-DS-Client"] = "app";
-    const ctl = new AbortController(); init.signal = ctl.signal; tm = setTimeout(() => ctl.abort(), opt.timeout || 10000);
+    const ctl = new AbortController(); init.signal = ctl.signal; tm = setTimeout(() => ctl.abort(), opt.timeout || (S.offline ? 2500 : 10000)); // đang ngoại tuyến: không chờ lâu mỗi lần gọi
   }
   try { res = await fetch(srvBase() + path, init); } catch (e) { const er = new Error("Mất kết nối với máy chủ Digital Shop. Kiểm tra máy tính chính còn bật phần mềm không."); er.net = true; throw er; }
   finally { clearTimeout(tm); }
@@ -194,8 +194,8 @@ function startPoll() {
     if (document.hidden) return;
     try {
       let r;
-      try { r = await api("GET", "/api/version", undefined, { timeout: 6000 }); }
-      catch (e) { if (!(APP && e.net)) throw e; await new Promise(k => setTimeout(k, 1200)); r = await api("GET", "/api/version", undefined, { timeout: 8000 }); } // wifi chập chờn: thử lại một lần rồi mới báo mất kết nối
+      try { r = await api("GET", "/api/version", undefined, { timeout: S.offline ? 2500 : 6000 }); }
+      catch (e) { if (!(APP && e.net) || S.offline) throw e; await new Promise(k => setTimeout(k, 1200)); r = await api("GET", "/api/version", undefined, { timeout: 8000 }); } // wifi chập chờn: thử lại một lần rồi mới báo mất kết nối
       if (APP && S.offline) { setOffline(false); await refresh(true); }
       else if (r.v !== S.version) await refresh(true);
       if (APP) { syncOutbox(); apkCheck(); }
@@ -373,11 +373,11 @@ async function boot() {
   if (APP && !store.get("server", "")) return showConnect();
   if (APP && store.get("mode", "sell") === "display") return openDisplayMode();
   let st;
-  try { st = await api("GET", "/api/status", undefined, { noAuth: true, timeout: 6000 }); }
+  try { st = await api("GET", "/api/status", undefined, { noAuth: true, timeout: 3500 }); }
   catch (e) {
-    if (APP && e.net && (store.get("tok", "") || store.get("offMe", "")) && await offLoadBoot()) { await enterApp(); return; } // mở app khi chưa có mạng: dùng dữ liệu lần cuối
-    if (APP && e.net && await offHasUsers()) { let sn = ""; try { sn = (await kvGet("boot")).b.settings.shopName; } catch (x) {} return showLogin(sn); } // chưa đăng nhập mà máy chủ mất kết nối: nhân viên vẫn nhập PIN để vào bán hàng
-    $("#app").innerHTML = `<div class="splash">${esc(e.message)}${APP ? `<div style="margin-top:14px;display:flex;gap:8px;justify-content:center"><button class="btn pri" onclick="boot()">Thử lại</button><button class="btn" data-act="connectEdit">Đổi máy chủ</button></div>` : ""}</div>`; return;
+    if (APP && e.net && (store.get("tok", "") || store.get("offMe", "")) && await offLoadBoot()) { S.offline = true; await enterApp(); setOffline(true); return; } // mở app khi chưa có mạng: dùng dữ liệu lần cuối
+    if (APP && e.net && await offHasUsers()) { let sn = ""; try { sn = (await offBootGet()).b.settings.shopName; } catch (x) {} return showLogin(sn); } // chưa đăng nhập mà máy chủ mất kết nối: nhân viên vẫn nhập PIN để vào bán hàng
+    $("#app").innerHTML = `<div class="splash">${esc(e.message)}${APP ? `<div style="margin-top:14px;display:flex;gap:8px;justify-content:center"><button class="btn pri" onclick="boot()">Thử lại</button><button class="btn" data-act="srvSheet">Đổi máy chủ</button></div>` : ""}</div>`; return;
   }
   if (st.needSetup) return showSetup();
   if (!st.loggedIn) return showLogin(st.shopName);
@@ -418,6 +418,7 @@ function showLogin(shop) {
     <div class="dots" id="dots"></div>
     <input id="pinIn" class="in num" type="password" inputmode="numeric" autocomplete="off" aria-label="Mã PIN" style="text-align:center;font-size:20px;letter-spacing:.3em" maxlength="8">
     <div class="pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "C", 0, "OK"].map(k => `<button type="button" data-act="pin" data-k="${k}" ${k === "OK" ? 'style="background:var(--green);color:#fff;border-color:var(--green);font-size:17px"' : ""}>${k === "C" ? "Xóa" : k}</button>`).join("")}</div>
+    ${APP ? `<button type="button" class="btn sm ghost" data-act="srvSheet" style="align-self:center">Máy chủ: ${esc(srvLabel(srvBase()))} · Đổi</button>` : ""}
   </div></div>`;
   const pi = $("#pinIn"); pi.focus();
   pi.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(pi.value); });

@@ -757,6 +757,7 @@ VIEWS.settings = function () {
       <div class="ps">Ứng dụng trên điện thoại này: <b>${esc(window.DS_APK || "?")}</b> · Phần mềm trên máy tính: <b>${esc(S.appVersion || "")}</b>. Ứng dụng điện thoại và phần mềm máy tính cập nhật riêng với nhau.</div>
       <div id="apkBox" class="ps"></div>
       <div class="row"><button class="btn" data-act="apkCheckNow">Kiểm tra bản Android mới</button></div></div>` : ""}
+    ${APP ? `<div class="card stack" style="margin-top:14px"><h2>Máy chủ kết nối</h2><div class="ps">Đang kết nối: <b>${esc(srvLabel(srvBase()))}</b> (${esc(srvBase().replace(/^https?:\/\//, ""))}). Làm ở nhiều địa điểm hoặc nhiều ca thì lưu mỗi nơi một tên rồi chuyển nhanh.</div><div class="row"><button class="btn" data-act="srvSheet">Đổi / chọn máy chủ</button></div></div>` : ""}
     ${own ? `<div class="card stack" style="margin-top:14px"><h2>Cập nhật phần mềm máy tính</h2>
       <div class="ps">Đang dùng bản <b>${esc(S.appVersion || "")}</b>. Cần có internet. Dữ liệu bán hàng được giữ nguyên khi cập nhật.</div>
       <div id="updBox" class="ps"></div>

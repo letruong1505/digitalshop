@@ -39,7 +39,8 @@ function sha256hex(str) {
   }
   return Promise.resolve(H.map(x => (x >>> 0).toString(16).padStart(8, "0")).join(""));
 }
-async function offUsers() { try { const c = await kvGet("boot"); return (c && c.b && c.b.offUsers) || []; } catch (e) { return []; } }
+async function offBootGet() { const c = await kvGet("boot:" + srvBase()); if (c) return c; return srvList().length <= 1 ? kvGet("boot") : null; } // bản chụp riêng cho từng máy chủ
+async function offUsers() { try { const c = await offBootGet(); return (c && c.b && c.b.offUsers) || []; } catch (e) { return []; } }
 const offHasUsers = async () => (await offUsers()).length > 0;
 async function offLogin(pin) {
   for (const u of await offUsers()) {
@@ -64,14 +65,14 @@ let lastCacheV = null;
 function offCacheBoot(b) {
   if (!APP || (b.version === lastCacheV && lastCacheV != null)) return; // chỉ lưu lại khi dữ liệu máy chủ đã đổi
   lastCacheV = b.version;
-  kvSet("boot", { b, at: Date.now() }).catch(() => {});
+  kvSet("boot:" + srvBase(), { b, at: Date.now() }).catch(() => {});
 }
 async function offLoadBoot() {
   try {
-    const c = await kvGet("boot"); if (!c || !c.b) return null;
+    const c = await offBootGet(); if (!c || !c.b) return null;
     const b = c.b;
     try { const m = S.offMe || JSON.parse(store.get("offMe", "") || "null"); if (m) { S.offMe = m; b.me = m; } } catch (e) {} // đang đăng nhập ngoại tuyến: dùng đúng người đó
-    for (const it of await obAll()) offApplyLocal(b.products, b.customers, it.local);
+    for (const it of (await obAll()).filter(x => !x.srv || x.srv === srvBase())) offApplyLocal(b.products, b.customers, it.local);
     S.cachedAt = c.at;
     return b;
   } catch (e) { return null; }
@@ -94,7 +95,7 @@ function setOffline(v) {
 let pending = [];
 async function offBar() {
   if (!APP) return;
-  try { pending = await obAll(); } catch (e) { pending = []; }
+  try { pending = (await obAll()).filter(x => !x.srv || x.srv === srvBase()); } catch (e) { pending = []; }
   let el = $("#offBar");
   const bad = pending.filter(x => x.err).length;
   if (!S.offline && !pending.length) { if (el) el.remove(); return; }
@@ -130,7 +131,7 @@ function offSale(body, t, T) {
   const inv = { id: body.cid, code: "CHỜ-" + body.cid.slice(-5).toUpperCase(), time, lines, sub: T.sub, disc: T.disc + promo, promo, promoNote: q.promoNote, total, given: cash ? given : 0, cash, bank, debt,
     custId: body.custId || "", custName: cust ? cust.name : "", staff: S.me ? S.me.name : "", note: body.note || "", offlineSale: true };
   const local = { lines: lines.map(l => ({ pid: l.pid, qty: l.qty, ratio: l.ratio })), custId: body.custId || "", debt };
-  return obPut({ cid: body.cid, body: q, at: time, inv, local }).then(() => { offApplyLocal(S.products, S.customers, local); offBar(); return inv; });
+  return obPut({ cid: body.cid, body: q, at: time, inv, local, srv: srvBase() }).then(() => { offApplyLocal(S.products, S.customers, local); offBar(); return inv; });
 }
 
 let syncing = false;
@@ -139,7 +140,7 @@ async function syncOutbox() {
   syncing = true;
   let did = 0;
   try {
-    for (const it of await obAll()) {
+    for (const it of (await obAll()).filter(x => !x.srv || x.srv === srvBase())) { // chỉ đẩy hóa đơn của đúng máy chủ đang kết nối
       try {
         await api("POST", "/api/invoices", it.body);
         await obDel(it.cid); did++;
@@ -212,10 +213,48 @@ function normServer(s) {
   if (!/:\d+$/.test(s.replace(/^https?:\/\//i, "")) && /^http:\/\//i.test(s)) s += ":8686";
   return s;
 }
+/* ---------- nhiều máy chủ (nhân viên làm 2 địa điểm / 2 ca): lưu tên gọi, chuyển nhanh ---------- */
+function srvList() {
+  let l = store.get("servers", []); if (!Array.isArray(l)) l = [];
+  const cur = store.get("server", "");
+  if (cur && !l.some(x => x.url === cur)) l = [{ name: "Máy chủ chính", url: cur }, ...l];
+  return l;
+}
+const srvLabel = u => { const x = srvList().find(y => y.url === u); return x ? x.name : (u || "").replace(/^https?:\/\//, ""); };
+function srvSave(name, url) {
+  const l = srvList().filter(x => x.url !== url); l.push({ name: (name || "").trim() || url.replace(/^https?:\/\//, ""), url });
+  store.set("servers", l);
+}
+ACT.srvPick = b => { const x = srvList()[+b.dataset.i]; if (!x) return; $("#cn-srv").value = x.url.replace(/^https?:\/\//, ""); $("#cn-name").value = x.name; };
+ACT.srvDel = b => { const l = srvList(); l.splice(+b.dataset.i, 1); store.set("servers", l); closeSheet(); srvSheet(); };
+async function srvSwitch(url) {
+  if (url === store.get("server", "")) return closeSheet();
+  const left = (await obAll()).filter(x => !x.srv || x.srv === srvBase()).length;
+  if (left) return toast(`Còn ${left} hóa đơn chờ đẩy lên máy chủ "${srvLabel(srvBase())}". Hãy kết nối lại máy chủ đó để đẩy xong rồi mới đổi`, true);
+  try {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 4000);
+    const r = await fetch(url + "/api/ping", { signal: ctl.signal }); clearTimeout(tm);
+    if ((await r.text()).trim() !== "taphoax") throw new Error("x");
+  } catch (e) { return toast(`Không kết nối được "${srvLabel(url)}". Kiểm tra wifi và máy tính đó`, true); }
+  store.set("tok", ""); S.offMe = null; store.set("offMe", ""); store.set("server", url); lastCacheV = null; S.offline = false;
+  closeSheet(); clearInterval(pollT); boot();
+}
+ACT.srvSwitch = b => srvSwitch(srvList()[+b.dataset.i].url);
+function srvSheet() {
+  const l = srvList(), cur = store.get("server", "");
+  openSheet(`<div class="sheet-h"><h2>Máy chủ kết nối</h2><button class="x" data-act="close" aria-label="Đóng">×</button></div>
+    <div class="ps">Chọn máy chủ của địa điểm / ca bạn đang làm. Cần cùng wifi với máy tính đó.</div>
+    <div class="stack" style="gap:8px">${l.map((x, i) => `<div class="row card" style="padding:10px 12px"><div class="grow"><b>${esc(x.name)}</b>${x.url === cur ? ' <span class="pill green">đang dùng</span>' : ""}<div class="ps">${esc(x.url.replace(/^https?:\/\//, ""))}</div></div>${x.url === cur ? "" : `<button class="btn sm pri" data-act="srvSwitch" data-i="${i}">Chuyển</button><button class="btn sm ghost danger" data-act="srvDel" data-i="${i}" data-confirm="Bấm lần nữa để xóa">Xóa</button>`}</div>`).join("")}</div>
+    <div class="row"><button class="btn" data-act="connectEdit">Thêm / sửa máy chủ</button></div>`);
+}
+ACT.srvSheet = () => srvSheet();
+
 function showConnect(msg) {
   $("#app").innerHTML = `<div class="login"><form class="box" id="connForm" autocomplete="off">
     <div class="sign"><small>Digital Shop · Android</small><b>Kết nối máy chủ</b></div>
     <p class="muted" style="margin:0;font-size:14px">Điện thoại cần cùng wifi với máy tính đang chạy Digital Shop. Trên máy tính, mở biểu tượng Digital Shop ở góc phải thanh tác vụ để xem địa chỉ (dạng 192.168.1.10:8686).</p>
+    ${srvList().length ? `<div class="field"><label>Máy chủ đã lưu</label><div class="row" style="flex-wrap:wrap">${srvList().map((x, i) => `<button type="button" class="btn sm" data-act="srvPick" data-i="${i}">${esc(x.name)}</button>`).join("")}</div></div>` : ""}
+    <div class="field"><label for="cn-name">Tên gọi (để nhớ, vd Cửa hàng 1)</label><input id="cn-name" class="in" placeholder="Cửa hàng chính" value="${esc(srvLabel(store.get("server", "")) === store.get("server", "").replace(/^https?:\/\//, "") ? "" : srvLabel(store.get("server", "")))}"></div>
     <div class="field"><label for="cn-srv">Địa chỉ máy chủ</label><input id="cn-srv" class="in" inputmode="url" placeholder="192.168.1.10:8686" value="${esc(store.get("server", ""))}" required></div>
     <div class="field"><label>Máy này dùng để</label>
       <label class="check"><input type="radio" name="cn-mode" value="sell" ${store.get("mode", "sell") !== "display" ? "checked" : ""}> Bán hàng (có bán ngoại tuyến)</label>
@@ -238,7 +277,12 @@ function showConnect(msg) {
       if (!/khach\.html\?k=/.test(du)) { msgEl.style.color = "var(--red)"; msgEl.textContent = "Dán đúng địa chỉ màn hình khách (có chữ khach.html?k=…) lấy ở Bán hàng → Màn hình khách."; return; }
       store.set("displayUrl", du);
     }
-    if (srv !== store.get("server", "")) store.set("tok", "");
+    if (srv !== store.get("server", "")) {
+      const left = (await obAll()).filter(x => !x.srv || x.srv === srvBase()).length;
+      if (left) { msgEl.style.color = "var(--red)"; msgEl.textContent = `Còn ${left} hóa đơn chờ đẩy lên máy chủ "${srvLabel(srvBase())}". Kết nối lại máy chủ đó để đẩy xong rồi mới đổi.`; return; }
+      store.set("tok", ""); S.offMe = null; store.set("offMe", ""); lastCacheV = null;
+    }
+    srvSave($("#cn-name").value, srv);
     store.set("server", srv); store.set("mode", mode);
     boot();
   };
