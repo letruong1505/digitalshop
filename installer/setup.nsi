@@ -13,7 +13,7 @@ ManifestDPIAware true
 !define APPNAME "Digital Shop"
 !define APPKEY "TapHoaX"
 !define COMPANY "Nam Linh Group"
-!define VERSION "3.1.18"
+!define VERSION "3.1.19"
 !define TERMS_VERSION "1.0"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPKEY}"
 !define APPREG "Software\NamLinhGroup\${APPKEY}"
