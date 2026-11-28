@@ -206,7 +206,7 @@ function startPoll() {
 /* ---------- toast, sheet, xác nhận 2 lần ---------- */
 let toastT;
 function toast(msg, err) {
-  const t = $("#toast"); t.textContent = msg; t.className = "toast" + (err ? " err" : ""); t.hidden = false;
+  const t = $("#toast"); t.innerHTML = `<span class="ti" aria-hidden="true">${err ? "!" : "✓"}</span><span class="tm"></span>`; t.lastChild.textContent = msg; t.setAttribute("role", err ? "alert" : "status"); t.className = "toast" + (err ? " err" : ""); t.hidden = false;
   clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, err ? 4500 : 2400);
 }
 let sheetClose = null;
