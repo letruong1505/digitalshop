@@ -168,7 +168,7 @@ Phát triển bởi Nam Linh Group
    - Máy tính chính phải bật Digital Shop thì mới xem từ xa được.
 
 BẢN QUYỀN VÀ CẬP NHẬT (từ bản 3.1)
-   - Dùng thử đầy đủ 30 ngày. Cài đặt → Bản quyền: bấm "Mua bản quyền", chọn gói, chuyển khoản theo QR;
+   - Dùng thử đầy đủ 15 ngày. Cài đặt → Bản quyền: bấm "Mua bản quyền", chọn gói, chuyển khoản theo QR;
      phần mềm tự nhận mã và kích hoạt sau khoảng 1 phút (hoặc bấm "Nhận mã đã mua", hoặc dán mã DS1...).
    - Hết hạn dùng thử/bản quyền: vẫn xem và xuất dữ liệu, không bán thêm được cho đến khi kích hoạt.
    - Cài đặt → Cập nhật phần mềm: bấm "Kiểm tra bản mới" rồi "Cập nhật ngay" (chỉ Windows, dữ liệu giữ nguyên).

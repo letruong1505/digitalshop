@@ -31,7 +31,7 @@ func licTestSetup(t *testing.T) ed25519.PrivateKey {
 
 func TestLicenseTrialAndActivate(t *testing.T) {
 	priv := licTestSetup(t)
-	if s := licStatus(); s.State != "trial" || !s.CanWrite || s.DaysLeft != 30 { t.Fatalf("trial: %+v", s) }
+	if s := licStatus(); s.State != "trial" || !s.CanWrite || s.DaysLeft != 15 { t.Fatalf("trial: %+v", s) }
 	if licGate("POST", "/api/invoices") != "" { t.Fatal("trial must allow writes") }
 
 	// hết dùng thử: chặn ghi, vẫn cho xem

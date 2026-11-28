@@ -7,7 +7,7 @@ package main
 //     Android: ANDROID_ID do app truyền vào). Chép phần mềm/dữ liệu sang máy khác → mã máy khác.
 //   - Mã kích hoạt: "DS1." + base64url(JSON) + "." + base64url(chữ ký Ed25519) do Nam Linh Group ký
 //     bằng khóa bí mật (công cụ licgen). Phần mềm chỉ có khóa công khai → không tự làm mã giả được.
-//   - Chưa kích hoạt: dùng thử đầy đủ 30 ngày. Hết hạn: chỉ xem và xuất dữ liệu (không khóa dữ liệu của khách).
+//   - Chưa kích hoạt: dùng thử đầy đủ 15 ngày. Hết hạn: chỉ xem và xuất dữ liệu (không khóa dữ liệu của khách).
 //   - Một gói duy nhất "Đầy đủ" (mã cũ gói co-ban/hddt đều được chấp nhận và coi như Đầy đủ).
 //   - Chống lùi đồng hồ: dùng mốc thời gian lớn nhất từng thấy.
 
@@ -28,7 +28,7 @@ import (
 var licPubKey = "liHb941iLYtHy190MziQp1H4xUOG/JeGXEBWrK+dqk0="
 
 const (
-	trialDays  = 30
+	trialDays  = 15
 	licFile    = "banquyen.json"
 	PlanBasic  = "co-ban"
 	PlanEinv   = "hddt"
